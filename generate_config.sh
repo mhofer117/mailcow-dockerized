@@ -241,4 +241,4 @@ mkdir -p data/assets/ssl
 chmod 600 mailcow.conf
 
 # copy but don't overwrite existing certificate
-cp -n data/assets/ssl-example/*.pem data/assets/ssl/
+cp -n -d data/assets/ssl-example/*.pem data/assets/ssl/

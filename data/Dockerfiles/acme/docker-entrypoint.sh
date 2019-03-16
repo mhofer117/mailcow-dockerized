@@ -21,6 +21,13 @@ log_f() {
   fi
 }
 
+ACME_BASE=/var/lib/acme
+SSL_EXAMPLE=/var/lib/ssl-example
+
+# Symlink ECDSA to RSA certificate if not present
+[[ ! -f ${ACME_BASE}/ecdsa-cert.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-cert.pem ]] && ln -s cert.pem ${ACME_BASE}/ecdsa-cert.pem
+[[ ! -f ${ACME_BASE}/ecdsa-key.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-key.pem ]] && ln -s key.pem ${ACME_BASE}/ecdsa-key.pem
+
 if [[ "${SKIP_LETS_ENCRYPT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   log_f "SKIP_LETS_ENCRYPT=y, skipping Let's Encrypt..."
   sleep 365d
@@ -32,9 +39,6 @@ until ping dockerapi -c1 > /dev/null; do
   sleep 1
 done
 log_f "OK" no_date
-
-ACME_BASE=/var/lib/acme
-SSL_EXAMPLE=/var/lib/ssl-example
 
 mkdir -p ${ACME_BASE}/acme
 
@@ -77,8 +81,8 @@ array_diff() {
 }
 
 verify_hash_match(){
-  CERT_HASH=$(openssl x509 -noout -modulus -in "${1}" | openssl md5)
-  KEY_HASH=$(openssl rsa -noout -modulus -in "${2}" | openssl md5)
+  CERT_HASH=$(openssl x509 -in "${1}" -noout -pubkey | openssl md5)
+  KEY_HASH=$(openssl pkey -in "${2}" -pubout | openssl md5)
   if [[ ${CERT_HASH} != ${KEY_HASH} ]]; then
     log_f "Certificate and key hashes do not match!"
     return 1
@@ -129,33 +133,152 @@ verify_challenge_path(){
   fi
 }
 
+check_certificate(){
+  local CERT=${1}
+  
+  local -a SAN_ARRAY_NOW
+  local -a ORPHANED_SAN
+  local -a ADDED_SAN
+  
+  # Check if certificate doesn't exist yet or is a symlink
+  if [[ ! -f "${CERT}" ]] || [[ -L "${CERT}" ]]; then
+    log_f "Certificate ${CERT} doesn't exist yet"
+    return 0
+  fi
+  
+  local SAN_CHANGE=0
+  
+  # Collecting SANs from active certificate
+  local SAN_NAMES=$(openssl x509 -noout -text -in ${CERT} | awk '/X509v3 Subject Alternative Name/ {getline;gsub(/ /, "", $0); print}' | tr -d "DNS:")
+  if [[ ! -z ${SAN_NAMES} ]]; then
+    IFS=',' read -a SAN_ARRAY_NOW <<< ${SAN_NAMES}
+  fi
+
+  # Finding difference in SAN array now vs. SAN array by current configuration
+  array_diff ORPHANED_SAN SAN_ARRAY_NOW ALL_VALIDATED
+  if [[ ! -z ${ORPHANED_SAN[*]} ]]; then
+    log_f "Found orphaned SANs ${ORPHANED_SAN[*]} in ${CERT}"
+    SAN_CHANGE=1
+  fi
+  array_diff ADDED_SAN ALL_VALIDATED SAN_ARRAY_NOW
+  if [[ ! -z ${ADDED_SAN[*]} ]]; then
+    log_f "Found new SANs ${ADDED_SAN[*]} for ${CERT}"
+    SAN_CHANGE=1
+  fi
+  
+  if [[ ${SAN_CHANGE} == 0 ]]; then
+    # Certificate did not change but could be due for renewal (4 weeks)
+    if ! openssl x509 -checkend 1209600 -noout -in ${CERT}; then
+      log_f "Certificate ${CERT} is due for renewal (< 2 weeks)"
+    else
+      log_f "Certificate validation for ${CERT} done, neither changed nor due for renewal"
+      return 1
+    fi
+  fi
+  
+  return 0
+}
+
+generate_certificate(){
+  local CERT=${1}
+  local KEY=${2}
+  local CSR=${3}
+  
+  # Generating CSR
+  printf "[SAN]\nsubjectAltName=" > /tmp/_SAN
+  printf "DNS:%s," "${ALL_VALIDATED[@]}" >> /tmp/_SAN
+  sed -i '$s/,$//' /tmp/_SAN
+  openssl req -new -sha256 -key ${KEY} -subj "/" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf /tmp/_SAN) > ${CSR}
+
+  if [[ "${LE_STAGING}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+    log_f "Using Let's Encrypt staging servers"
+    STAGING_PARAMETER='--directory-url https://acme-staging-v02.api.letsencrypt.org/directory'
+  else
+    STAGING_PARAMETER=
+  fi
+  
+  log_f "Requesting certificate ${CERT} for SANs ${ALL_VALIDATED[*]}"
+
+  # acme-tiny writes info to stderr and ceritifcate to stdout
+  # The redirects will do the following:
+  # - redirect stdout to temp certificate file
+  # - redirect acme-tiny stderr to stdout (logs to variable ACME_RESPONSE)
+  # - tee stderr to get live output and log to dockerd
+
+  ACME_RESPONSE=$(acme-tiny ${STAGING_PARAMETER} \
+    --account-key ${ACME_BASE}/acme/account.pem \
+    --disable-check \
+    --csr $CSR \
+    --acme-dir /var/www/acme/ 2>&1 > /tmp/_cert.pem | tee /dev/fd/5)
+
+  case "$?" in
+    0) # cert requested
+      ACME_RESPONSE_B64=$(echo "${ACME_RESPONSE}" | openssl enc -e -A -base64)
+      log_f "${ACME_RESPONSE_B64}" redis_only b64
+      # Moving temp cert to acme/cert.pem
+      if verify_hash_match /tmp/_cert.pem ${KEY}; then
+        mv /tmp/_cert.pem ${CERT}
+        rm /var/www/acme/*
+        log_f "Certificate ${CERT} successfully renewed"
+        return 0
+      else
+        log_f "Certificate ${CERT} was successfully requested, but key and certificate have non-matching hashes, ignoring certificate"
+        return 1
+      fi
+      ;;
+    *) # non-zero is non-fun
+      ACME_RESPONSE_B64=$(echo "${ACME_RESPONSE}" | openssl enc -e -A -base64)
+      log_f "${ACME_RESPONSE_B64}" redis_only b64
+      return 1
+      ;;
+  esac
+}
+
 [[ ! -f ${ACME_BASE}/dhparams.pem ]] && cp ${SSL_EXAMPLE}/dhparams.pem ${ACME_BASE}/dhparams.pem
 
 if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]]; then
   ISSUER=$(openssl x509 -in ${ACME_BASE}/cert.pem -noout -issuer)
   if [[ ${ISSUER} != *"Let's Encrypt"* && ${ISSUER} != *"mailcow"* && ${ISSUER} != *"Fake LE Intermediate"* ]]; then
     log_f "Found certificate with issuer other than mailcow snake-oil CA and Let's Encrypt, skipping ACME client..."
+    
+    # Make sure we do not combine Letsencrypt ECDSA with another RSA certificate
+    # Remove ECDSA if that is the case
+    if [[ -f ${ACME_BASE}/ecdsa-cert.pem ]] && [[ -f ${ACME_BASE}/ecdsa-key.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-cert.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-key.pem ]]; then
+      ISSUER=$(openssl x509 -in ${ACME_BASE}/ecdsa-cert.pem -noout -issuer)
+      if [[ ${ISSUER} == *"Let's Encrypt"* || ${ISSUER} == *"mailcow"* || ${ISSUER} == *"Fake LE Intermediate"* ]]; then
+        log_f "Remove Let's Encrypt ECDSA certificate in favour of a custom RSA one"
+        ln -sf cert.pem ${ACME_BASE}/ecdsa-cert.pem
+        ln -sf key.pem ${ACME_BASE}/ecdsa-key.pem
+      fi
+    fi
     sleep 3650d
     exec $(readlink -f "$0")
   fi
 else
-  if [[ -f ${ACME_BASE}/acme/cert.pem ]] && [[ -f ${ACME_BASE}/acme/key.pem ]]; then
-    if verify_hash_match ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem; then
-      log_f "Restoring previous acme certificate and restarting script..."
-      cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/cert.pem
-      cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/key.pem
-      # Restarting with env var set to trigger a restart,
-      exec env TRIGGER_RESTART=1 $(readlink -f "$0")
+  if [[ -f ${ACME_BASE}/acme/cert.pem ]] && [[ -f ${ACME_BASE}/acme/key.pem ]] && verify_hash_match ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem; then
+    log_f "Restoring previous acme certificate and restarting script..."
+    cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/cert.pem
+    cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/key.pem
+    
+    if [[ -f ${ACME_BASE}/acme/ecdsa-cert.pem ]] && [[ -f ${ACME_BASE}/acme/ecdsa-key.pem ]] && verify_hash_match ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/acme/ecdsa-key.pem; then
+      # Remove symlink before copying
+      cp --remove-destination ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/ecdsa-cert.pem
+      cp --remove-destination ${ACME_BASE}/acme/ecdsa-key.pem ${ACME_BASE}/ecdsa-key.pem
     fi
-  ISSUER="mailcow"
+    # Restarting with env var set to trigger a restart,
+    exec env TRIGGER_RESTART=1 $(readlink -f "$0")
   else
     log_f "Restoring mailcow snake-oil certificates and restarting script..."
     cp ${SSL_EXAMPLE}/cert.pem ${ACME_BASE}/cert.pem
     cp ${SSL_EXAMPLE}/key.pem ${ACME_BASE}/key.pem
+    ln -sf cert.pem ${ACME_BASE}/ecdsa-cert.pem
+    ln -sf key.pem ${ACME_BASE}/ecdsa-key.pem
     exec env TRIGGER_RESTART=1 $(readlink -f "$0")
   fi
 fi
+
 chmod 600 ${ACME_BASE}/key.pem
+chmod 600 ${ACME_BASE}/ecdsa-key.pem
 
 log_f "Waiting for database... " no_nl
 while ! mysqladmin status --socket=/var/run/mysqld/mysqld.sock -u${DBUSER} -p${DBPASS} --silent; do
@@ -184,10 +307,16 @@ while true; do
 
   # Re-using previous acme-mailcow account and domain keys
   if [[ ! -f ${ACME_BASE}/acme/key.pem ]]; then
-    log_f "Generating missing domain private key..."
+    log_f "Generating missing domain private rsa key..."
     openssl genrsa 4096 > ${ACME_BASE}/acme/key.pem
   else
-    log_f "Using existing domain key ${ACME_BASE}/acme/key.pem"
+    log_f "Using existing domain rsa key ${ACME_BASE}/acme/key.pem"
+  fi
+  if [[ ! -f ${ACME_BASE}/acme/ecdsa-key.pem ]]; then
+    log_f "Generating missing domain private ecdsa key..."
+    openssl ecparam -genkey -name secp384r1 -noout > ${ACME_BASE}/acme/ecdsa-key.pem
+  else
+    log_f "Using existing domain ecdsa key ${ACME_BASE}/acme/ecdsa-key.pem"
   fi
   if [[ ! -f ${ACME_BASE}/acme/account.pem ]]; then
     log_f "Generating missing Lets Encrypt account key..."
@@ -197,6 +326,7 @@ while true; do
   fi
 
   chmod 600 ${ACME_BASE}/acme/key.pem
+  chmod 600 ${ACME_BASE}/acme/ecdsa-key.pem
   chmod 600 ${ACME_BASE}/acme/account.pem
 
   # Skipping IP check when we like to live dangerously
@@ -210,14 +340,6 @@ while true; do
   unset ADDITIONAL_VALIDATED_SAN
   unset ADDITIONAL_WC_ARR
   unset ADDITIONAL_SAN_ARR
-  unset SAN_CHANGE
-  unset SAN_ARRAY_NOW
-  unset ORPHANED_SAN
-  unset ADDED_SAN
-  SAN_CHANGE=0
-  declare -a SAN_ARRAY_NOW
-  declare -a ORPHANED_SAN
-  declare -a ADDED_SAN
   declare -a SQL_DOMAIN_ARR
   declare -a VALIDATED_CONFIG_DOMAINS
   declare -a ADDITIONAL_VALIDATED_SAN
@@ -390,98 +512,69 @@ while true; do
     sleep 1h
     exec $(readlink -f "$0")
   fi
+  
+  # Check whether a certificate needs an update
+  check_certificate ${ACME_BASE}/cert.pem
+  UPDATE_RSA=$?
+  
+  check_certificate ${ACME_BASE}/ecdsa-cert.pem
+  UPDATE_ECDSA=$?
 
-  # Collecting SANs from active certificate
-  SAN_NAMES=$(openssl x509 -noout -text -in ${ACME_BASE}/cert.pem | awk '/X509v3 Subject Alternative Name/ {getline;gsub(/ /, "", $0); print}' | tr -d "DNS:")
-  if [[ ! -z ${SAN_NAMES} ]]; then
-    IFS=',' read -a SAN_ARRAY_NOW <<< ${SAN_NAMES}
+  # Make backup
+  if [[ ${UPDATE_RSA} == 0 ]] || [[ ${UPDATE_ECDSA} == 0 ]]; then
+    DATE=$(date +%Y-%m-%d_%H_%M_%S)
+    log_f "Creating backups in ${ACME_BASE}/backups/${DATE}/ ..."
+    mkdir -p ${ACME_BASE}/backups/${DATE}/
+    [[ -f ${ACME_BASE}/acme/acme.csr ]] && cp ${ACME_BASE}/acme/acme.csr ${ACME_BASE}/backups/${DATE}/
+    [[ -f ${ACME_BASE}/acme/cert.pem ]] && cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/backups/${DATE}/
+    [[ -f ${ACME_BASE}/acme/key.pem ]] && cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/backups/${DATE}/
+    [[ -f ${ACME_BASE}/acme/account.pem ]] && cp ${ACME_BASE}/acme/account.pem ${ACME_BASE}/backups/${DATE}/
+    [[ -f ${ACME_BASE}/acme/ecdsa-cert.pem ]] && cp ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/backups/${DATE}/
+    [[ -f ${ACME_BASE}/acme/ecdsa-key.pem ]] && cp ${ACME_BASE}/acme/ecdsa-key.pem ${ACME_BASE}/backups/${DATE}/
+    [[ -f ${ACME_BASE}/acme/ecdsa-acme.csr ]] && cp ${ACME_BASE}/acme/ecdsa-acme.csr ${ACME_BASE}/backups/${DATE}/
   fi
-
-  # Finding difference in SAN array now vs. SAN array by current configuration
-  array_diff ORPHANED_SAN SAN_ARRAY_NOW ALL_VALIDATED
-  if [[ ! -z ${ORPHANED_SAN[*]} ]]; then
-    log_f "Found orphaned SANs ${ORPHANED_SAN[*]}"
-    SAN_CHANGE=1
+  
+  # 0 = cert renew successful
+  # 1 = cert renew failed
+  # 2 = cert not due for renewal
+  RSA_STATUS=2
+  ECDSA_STATUS=2
+  
+  # Update certificates if necessary
+  if [[ ${UPDATE_RSA} == 0 ]]; then
+    generate_certificate ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem ${ACME_BASE}/acme/acme.csr
+    RSA_STATUS=$?
   fi
-  array_diff ADDED_SAN ALL_VALIDATED SAN_ARRAY_NOW
-  if [[ ! -z ${ADDED_SAN[*]} ]]; then
-    log_f "Found new SANs ${ADDED_SAN[*]}"
-    SAN_CHANGE=1
+  if [[ ${UPDATE_ECDSA} == 0 ]]; then
+    generate_certificate ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/acme/ecdsa-key.pem ${ACME_BASE}/acme/ecdsa-acme.csr
+    ECDSA_STATUS=$?
   fi
-
-  if [[ ${SAN_CHANGE} == 0 ]]; then
-    # Certificate did not change but could be due for renewal (4 weeks)
-    if ! openssl x509 -checkend 1209600 -noout -in ${ACME_BASE}/cert.pem; then
-      log_f "Certificate is due for renewal (< 2 weeks)"
-    else
-      log_f "Certificate validation done, neither changed nor due for renewal, sleeping for another day."
-      sleep 1d
-      continue
-    fi
+  
+  # Deploy on success
+  if [[ ${RSA_STATUS} == 0 ]]; then
+    cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/cert.pem
+    cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/key.pem
+    log_f "RSA certificate deployed"
   fi
-
-  DATE=$(date +%Y-%m-%d_%H_%M_%S)
-  log_f "Creating backups in ${ACME_BASE}/backups/${DATE}/ ..."
-  mkdir -p ${ACME_BASE}/backups/${DATE}/
-  [[ -f ${ACME_BASE}/acme/acme.csr ]] && cp ${ACME_BASE}/acme/acme.csr ${ACME_BASE}/backups/${DATE}/
-  [[ -f ${ACME_BASE}/acme/cert.pem ]] && cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/backups/${DATE}/
-  [[ -f ${ACME_BASE}/acme/key.pem ]] && cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/backups/${DATE}/
-  [[ -f ${ACME_BASE}/acme/account.pem ]] && cp ${ACME_BASE}/acme/account.pem ${ACME_BASE}/backups/${DATE}/
-
-  # Generating CSR
-  printf "[SAN]\nsubjectAltName=" > /tmp/_SAN
-  printf "DNS:%s," "${ALL_VALIDATED[@]}" >> /tmp/_SAN
-  sed -i '$s/,$//' /tmp/_SAN
-  openssl req -new -sha256 -key ${ACME_BASE}/acme/key.pem -subj "/" -reqexts SAN -config <(cat /etc/ssl/openssl.cnf /tmp/_SAN) > ${ACME_BASE}/acme/acme.csr
-
-  if [[ "${LE_STAGING}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
-    log_f "Using Let's Encrypt staging servers"
-    STAGING_PARAMETER='--directory-url https://acme-staging-v02.api.letsencrypt.org/directory'
+  if [[ ${ECDSA_STATUS} == 0 ]]; then
+    # Remove symlink before copying
+    cp --remove-destination ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/ecdsa-cert.pem
+    cp --remove-destination ${ACME_BASE}/acme/ecdsa-key.pem ${ACME_BASE}/ecdsa-key.pem
+    log_f "ECDSA certificate deployed"
+  fi
+  
+  # Reload configurations if at least one certificate has been renewed
+  if [[ ${RSA_STATUS} == 0 ]] || [[ ${ECDSA_STATUS} == 0 ]]; then
+    reload_configurations
+    log_f "Configurations reloaded"
+  fi
+  
+  # Wait 30 minutes on failure, 1 day otherwise
+  if [[ ${RSA_STATUS} == 1 ]] || [[ ${ECDSA_STATUS} == 1 ]]; then
+    log_f "Retrying in 30 minutes..."
+    sleep 30m
   else
-    STAGING_PARAMETER=
+    log_f "Sleeping 1d..."
+    sleep 1d
   fi
-
-  # acme-tiny writes info to stderr and ceritifcate to stdout
-  # The redirects will do the following:
-  # - redirect stdout to temp certificate file
-  # - redirect acme-tiny stderr to stdout (logs to variable ACME_RESPONSE)
-  # - tee stderr to get live output and log to dockerd
-
-  ACME_RESPONSE=$(acme-tiny ${STAGING_PARAMETER} \
-    --account-key ${ACME_BASE}/acme/account.pem \
-    --disable-check \
-    --csr ${ACME_BASE}/acme/acme.csr \
-    --acme-dir /var/www/acme/ 2>&1 > /tmp/_cert.pem | tee /dev/fd/5)
-
-  case "$?" in
-    0) # cert requested
-      ACME_RESPONSE_B64=$(echo "${ACME_RESPONSE}" | openssl enc -e -A -base64)
-      log_f "${ACME_RESPONSE_B64}" redis_only b64
-      log_f "Deploying..."
-      # Deploy the new certificate and key
-      # Moving temp cert to acme/cert.pem
-      if verify_hash_match /tmp/_cert.pem ${ACME_BASE}/acme/key.pem; then
-        mv /tmp/_cert.pem ${ACME_BASE}/acme/cert.pem
-        cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/cert.pem
-        cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/key.pem
-        reload_configurations
-        rm /var/www/acme/*
-        log_f "Certificate successfully deployed, removing backup, sleeping 1d"
-        sleep 1d
-      else
-        log_f "Certificate was successfully requested, but key and certificate have non-matching hashes, ignoring certificate"
-        log_f "Retrying in 30 minutes..."
-        sleep 30m
-        exec $(readlink -f "$0")
-      fi
-      ;;
-    *) # non-zero is non-fun
-      ACME_RESPONSE_B64=$(echo "${ACME_RESPONSE}" | openssl enc -e -A -base64)
-      log_f "${ACME_RESPONSE_B64}" redis_only b64
-      log_f "Retrying in 30 minutes..."
-      sleep 30m
-      exec $(readlink -f "$0")
-      ;;
-  esac
-
 done
