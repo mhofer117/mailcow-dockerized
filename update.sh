@@ -138,6 +138,7 @@ CONFIG_ARRAY=(
   "ACL_ANYONE"
   "SOLR_HEAP"
   "SKIP_SOLR"
+  "SKIP_ECDSA_CERT"
 )
 
 sed -i '$a\' mailcow.conf
@@ -235,14 +236,24 @@ for option in ${CONFIG_ARRAY[@]}; do
       echo '# Solr is a prone to run OOM on large systems and should be monitored. Unmonitored Solr setups are not recommended.' >> mailcow.conf
       echo '# Solr will refuse to start with total system memory below or equal to 2 GB.' >> mailcow.conf
       echo "SOLR_HEAP=1024" >> mailcow.conf
-  fi
+    fi
   elif [[ ${option} == "SKIP_SOLR" ]]; then
     if ! grep -q ${option} mailcow.conf; then
       echo "Adding new option \"${option}\" to mailcow.conf"
       echo '# Solr is disabled by default after upgrading from non-Solr to Solr-enabled mailcows.' >> mailcow.conf
       echo '# Disable Solr or if you do not want to store a readable index of your mails in solr-vol-1.' >> mailcow.conf
       echo "SKIP_SOLR=y" >> mailcow.conf
-  fi
+    fi
+  elif [[ ${option} == "SKIP_ECDSA_CERT" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo "Adding new option \"${option}\" to mailcow.conf"
+      echo "# Skip issuing Let's Encrypt ECDSA certificates - y/n" >> mailcow.conf
+      echo "# ECDSA certificates are disabled by default after upgrading." >> mailcow.conf
+      echo "# This should only be enabled if either" >> mailcow.conf
+      echo "# * you haven't set any TLSA DNS records or" >> mailcow.conf
+      echo "# * you will add additional TLSA DNS records for the ECDSA certificate. (See domain's DNS config in Mailcow UI after enabling.)" >> mailcow.conf
+      echo "SKIP_ECDSA_CERT=y" >> mailcow.conf
+    fi
   elif ! grep -q ${option} mailcow.conf; then
     echo "Adding new option \"${option}\" to mailcow.conf"
     echo "${option}=n" >> mailcow.conf

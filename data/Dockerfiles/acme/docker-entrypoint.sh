@@ -517,8 +517,13 @@ while true; do
   check_certificate ${ACME_BASE}/cert.pem
   UPDATE_RSA=$?
   
-  check_certificate ${ACME_BASE}/ecdsa-cert.pem
-  UPDATE_ECDSA=$?
+  if [[ ! "${SKIP_ECDSA_CERT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+    check_certificate ${ACME_BASE}/ecdsa-cert.pem
+    UPDATE_ECDSA=$?
+  else
+    log_f "Skipping ECDSA certificate check"
+    UPDATE_ECDSA=1
+  fi
 
   # Make backup
   if [[ ${UPDATE_RSA} == 0 ]] || [[ ${UPDATE_ECDSA} == 0 ]]; then
