@@ -308,7 +308,7 @@ services:
         - DBUSER=${DBUSER}
         - DBPASS=${DBPASS}
         - SKIP_LETS_ENCRYPT=${SKIP_LETS_ENCRYPT:-n}
-        - SKIP_ECDSA_CERT=${SKIP_ECDSA_CERT:-n}
+        - SKIP_ECDSA_CERT=${SKIP_ECDSA_CERT:-y}
         - SKIP_IP_CHECK=${SKIP_IP_CHECK:-n}
         - LE_STAGING=${LE_STAGING:-n}
         - TZ=${TZ}
