@@ -13,6 +13,8 @@ data/conf/nextcloud-*.bak
 data/web/inc/vars.local.inc.php
 data/assets/ssl/*
 .vscode/*
+.idea
+*.iml
 data/web/.well-known/acme-challenge
 data/web/nextcloud*/
 data/conf/rspamd/local.d/*
