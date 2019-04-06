@@ -17,6 +17,11 @@ RUN apk add --update --no-cache \
   && pip install acme-tiny
 
 COPY docker-entrypoint.sh /srv/docker-entrypoint.sh
+COPY functions.sh /srv/functions.sh
+COPY obtain-certificate.sh /srv/obtain-certificate.sh
+COPY reload-configurations.sh /srv/reload-configurations.sh
 COPY expand6.sh /srv/expand6.sh
+
+RUN chmod +x /srv/*.sh
 
 CMD ["/sbin/tini", "-g", "--", "/srv/docker-entrypoint.sh"]
