@@ -8,6 +8,8 @@ server {
 
   ssl_certificate /etc/ssl/mail/cert.pem;
   ssl_certificate_key /etc/ssl/mail/key.pem;
+  ssl_certificate /etc/ssl/mail/ecdsa-cert.pem;
+  ssl_certificate_key /etc/ssl/mail/ecdsa-key.pem;
 
   server_name '${MAILCOW_HOSTNAME}' autodiscover.* autoconfig.*;
 
@@ -19,18 +21,25 @@ for cert_dir in /etc/ssl/mail/*/ ; do
     continue
   fi
   # remove hostname to not cause nginx warnings (hostname is covered in default server listen)
-  domains="$(cat ${cert_dir}domains | sed -e "s/\(^\| \)\($(echo $MAILCOW_HOSTNAME | sed 's/\./\\./g')\)\( \|$\)/ /g" | sed -e 's/^[[:space:]]*//')"
+  domains="$(cat ${cert_dir}domains | sed -e "s/\(^\| \)\($(echo ${MAILCOW_HOSTNAME} | sed 's/\./\\./g')\)\( \|$\)/ /g" | sed -e 's/^[[:space:]]*//')"
   if [[ "${domains}" == "" ]]; then
     continue
   fi
-  echo '
+  echo -n '
 server {
   listen '${HTTPS_PORT}' ssl http2;
   listen [::]:'${HTTPS_PORT}' ssl http2;
 
   ssl_certificate '${cert_dir}'cert.pem;
   ssl_certificate_key '${cert_dir}'key.pem;
-
+';
+  if [[ -f ${cert_dir}ecdsa-cert.pem && -f ${cert_dir}ecdsa-key.pem ]]; then
+    echo -n '
+  ssl_certificate '${cert_dir}'ecdsa-cert.pem;
+  ssl_certificate_key '${cert_dir}'ecdsa-key.pem;
+';
+  fi
+  echo -n '
   server_name '${domains}';
 
   include /etc/nginx/conf.d/includes/site-defaults.conf;

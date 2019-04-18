@@ -138,11 +138,14 @@ for cert_dir in /etc/ssl/mail/*/ ; do
   fi
   domains=($(cat ${cert_dir}domains))
   for domain in ${domains[@]}; do
-    echo 'local_name '${domain}' {
-  ssl_cert = <'${cert_dir}'cert.pem
-  ssl_key = <'${cert_dir}'key.pem
-}
-' >> /usr/local/etc/dovecot/sni.conf;
+    echo 'local_name '${domain}' {' >> /usr/local/etc/dovecot/sni.conf;
+    echo '  ssl_cert = <'${cert_dir}'cert.pem' >> /usr/local/etc/dovecot/sni.conf;
+    echo '  ssl_key = <'${cert_dir}'key.pem' >> /usr/local/etc/dovecot/sni.conf;
+    if [[ -f ${cert_dir}ecdsa-cert.pem && -f ${cert_dir}ecdsa-key.pem ]]; then
+      echo '  ssl_alt_cert = <'${cert_dir}'ecdsa-cert.pem' >> /usr/local/etc/dovecot/sni.conf;
+      echo '  ssl_alt_key = <'${cert_dir}'ecdsa-key.pem' >> /usr/local/etc/dovecot/sni.conf;
+    fi
+    echo '}' >> /usr/local/etc/dovecot/sni.conf;
   done
 done
 

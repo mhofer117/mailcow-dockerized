@@ -22,6 +22,10 @@ if [[ "${SKIP_LETS_ENCRYPT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   exec $(readlink -f "$0")
 fi
 
+if [[ "${SKIP_ECDSA_CERT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+  SKIP_ECDSA_CERT=y
+fi
+
 ACME_BASE=/var/lib/acme
 SSL_EXAMPLE=/var/lib/ssl-example
 
@@ -155,7 +159,7 @@ while true; do
     if [[ ! -f ${cert_dir}domains ]] || [[ ! -f ${cert_dir}cert.pem ]] || [[ ! -f ${cert_dir}key.pem ]]; then
       continue
     fi
-    EXISTING_CERTS+=("$(cat ${cert_dir}domains)")
+    EXISTING_CERTS+=("$(basename ${cert_dir})")
   done
 
   # Cleaning up and init validation arrays
@@ -292,26 +296,47 @@ while true; do
   SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
   if [[ ! -z ${SERVER_SAN_VALIDATED[*]} ]]; then
     CERT_NAME=${SERVER_SAN_VALIDATED[0]}
-    VALIDATED_CERTIFICATES+=("$(echo ${SERVER_SAN_VALIDATED[*]})")
+    VALIDATED_CERTIFICATES+=("${CERT_NAME}")
+
     # obtain server certificate if required
-    DOMAINS=${SERVER_SAN_VALIDATED[@]} /srv/obtain-certificate.sh
-    if [[ "$?" == "0" ]]; then
-      if [[ "`printf '_%s_\n' "${EXISTING_CERTS[@]}"`" != *"_${SERVER_SAN_VALIDATED[*]}_"* ]]; then
-        CERT_AMOUNT_CHANGED=1
-      fi
+    DOMAINS=${SERVER_SAN_VALIDATED[@]} /srv/obtain-certificate.sh rsa
+    RETURN="$?"
+    if [[ "$RETURN" == "0" ]]; then # 0 = cert created successfully
+      CERT_AMOUNT_CHANGED=1
       CERT_CHANGED=1
+    elif [[ "$RETURN" == "1" ]]; then # 1 = cert renewed successfully
+      CERT_CHANGED=1
+    elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
+      :
+    else
+        CERT_ERRORS=1
+    fi
+    if [[ "${CUSTOM_CERT}" != "1" ]]; then
+      # create relative symbolic link as server certificate
+      cd ${ACME_BASE}
+      ln -sf "./${CERT_NAME}/cert.pem" "./cert.pem"
+      ln -sf "./${CERT_NAME}/key.pem" "./key.pem"
+    fi
+
+    if [[ "${SKIP_ECDSA_CERT}" != "y" ]]; then
+      DOMAINS=${SERVER_SAN_VALIDATED[@]} /srv/obtain-certificate.sh ecdsa
+      RETURN="$?"
+      if [[ "$RETURN" == "0" ]]; then # 0 = cert created successfully
+        CERT_AMOUNT_CHANGED=1
+        CERT_CHANGED=1
+      elif [[ "$RETURN" == "1" ]]; then # 1 = cert renewed successfully
+        CERT_CHANGED=1
+      elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
+        :
+      else
+          CERT_ERRORS=1
+      fi
       if [[ "${CUSTOM_CERT}" != "1" ]]; then
         # create relative symbolic link as server certificate
         cd ${ACME_BASE}
-        ln -sf "./${CERT_NAME}/cert.pem" "./cert.pem"
-        ln -sf "./${CERT_NAME}/key.pem" "./key.pem"
+        ln -sf "./${CERT_NAME}/ecdsa-cert.pem" "./ecdsa-cert.pem"
+        ln -sf "./${CERT_NAME}/ecdsa-key.pem" "./ecdsa-key.pem"
       fi
-    elif [[ "$?" == "1" ]]; then
-      : # certificate exists and no renewel was required
-    else
-      log_f "Could not obtain server certificate, retrying in 30 minutes..."
-      sleep 30m
-      exec $(readlink -f "$0")
     fi
   fi
 
@@ -368,18 +393,34 @@ while true; do
 
     if [[ ! -z ${VALIDATED_CONFIG_DOMAINS_SORTED[*]} ]]; then
       CERT_NAME=${VALIDATED_CONFIG_DOMAINS_SORTED[0]}
-      VALIDATED_CERTIFICATES+=("$(echo ${VALIDATED_CONFIG_DOMAINS_SORTED[*]})")
+      VALIDATED_CERTIFICATES+=("${CERT_NAME}")
       # obtain server certificate if required
-      DOMAINS=${VALIDATED_CONFIG_DOMAINS_SORTED[@]} /srv/obtain-certificate.sh
-      if [[ "$?" == "0" ]]; then
-        if [[ "`printf '_%s_\n' "${EXISTING_CERTS[@]}"`" != *"_${VALIDATED_CONFIG_DOMAINS_SORTED[*]}_"* ]]; then
-          CERT_AMOUNT_CHANGED=1
-        fi
+      DOMAINS=${VALIDATED_CONFIG_DOMAINS_SORTED[@]} /srv/obtain-certificate.sh rsa
+      RETURN="$?"
+      if [[ "$RETURN" == "0" ]]; then # 0 = cert created successfully
+        CERT_AMOUNT_CHANGED=1
         CERT_CHANGED=1
-      elif [[ "$?" == "1" ]]; then
-        : # certificate exists and no renewel was required
+      elif [[ "$RETURN" == "1" ]]; then # 1 = cert renewed successfully
+        CERT_CHANGED=1
+      elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
+        :
       else
-        CERT_ERRORS=1
+          CERT_ERRORS=1
+      fi
+
+      if [[ "${SKIP_ECDSA_CERT}" != "y" ]]; then
+        DOMAINS=${VALIDATED_CONFIG_DOMAINS_SORTED[@]} /srv/obtain-certificate.sh ecdsa
+        RETURN="$?"
+        if [[ "$RETURN" == "0" ]]; then # 0 = cert created successfully
+          CERT_AMOUNT_CHANGED=1
+          CERT_CHANGED=1
+        elif [[ "$RETURN" == "1" ]]; then # 1 = cert renewed successfully
+          CERT_CHANGED=1
+        elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
+          :
+        else
+            CERT_ERRORS=1
+        fi
       fi
     fi
   done
@@ -392,18 +433,23 @@ while true; do
   fi
 
   # find orphaned certificates
-  for CERT_DOMAINS in "${EXISTING_CERTS[@]}"; do
-    if [[ ! "`printf '_%s_\n' "${VALIDATED_CERTIFICATES[@]}"`" == *"_${CERT_DOMAINS}_"* ]]; then
-      CERT_DOMAINS_ARR=(${CERT_DOMAINS})
-      if [[ "$(cat ${ACME_BASE}/${CERT_DOMAINS_ARR[0]}/domains)" != "${CERT_DOMAINS}" ]]; then
-        # cert was modified so not obsolete
-        continue
-      fi
+  for EXISTING_CERT in "${EXISTING_CERTS[@]}"; do
+    if [[ ! "`printf '_%s_\n' "${VALIDATED_CERTIFICATES[@]}"`" == *"_${EXISTING_CERT}_"* ]]; then
       DATE=$(date +%Y-%m-%d_%H_%M_%S)
-      log_f "Found orphaned certificate: ${CERT_DOMAINS} - archiving it at ${ACME_BASE}/backups/${DATE}/"
-      mkdir -p ${ACME_BASE}/backups/${DATE}/
-      cp -r ${ACME_BASE}/${CERT_DOMAINS_ARR[0]} ${ACME_BASE}/backups/${DATE}/
-      rm -rf ${ACME_BASE}/${CERT_DOMAINS_ARR[0]}
+      log_f "Found orphaned certificate: ${EXISTING_CERT} - archiving it at ${ACME_BASE}/backups/${EXISTING_CERT}/"
+      BACKUP_DIR=${ACME_BASE}/backups/${EXISTING_CERT}/${DATE}
+      BACKUP_DIR_ECDSA=${ACME_BASE}/backups/${EXISTING_CERT}/ecdsa-${DATE}
+
+      # archive ecdsa cert (if exists)
+      mkdir -p ${BACKUP_DIR_ECDSA}/
+      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem && -f ${ACME_BASE}/${EXISTING_CERT}/domains ]] && cp ${ACME_BASE}/${EXISTING_CERT}/domains ${BACKUP_DIR_ECDSA}/
+      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem ${BACKUP_DIR_ECDSA}/
+      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-key.pem ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-key.pem ${BACKUP_DIR_ECDSA}/
+      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-acme.csr ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-acme.csr ${BACKUP_DIR_ECDSA}/
+
+      # archive rsa cert and any other files
+      mv ${ACME_BASE}/${EXISTING_CERT} ${BACKUP_DIR}
+
       CERT_CHANGED=1
       CERT_AMOUNT_CHANGED=1
     fi

@@ -17,8 +17,8 @@ log_f() {
 }
 
 verify_hash_match(){
-  CERT_HASH=$(openssl x509 -noout -modulus -in "${1}" | openssl md5)
-  KEY_HASH=$(openssl rsa -noout -modulus -in "${2}" | openssl md5)
+  CERT_HASH=$(openssl x509 -in "${1}" -noout -pubkey | openssl md5)
+  KEY_HASH=$(openssl pkey -in "${2}" -pubout | openssl md5)
   if [[ ${CERT_HASH} != ${KEY_HASH} ]]; then
     log_f "Certificate and key hashes do not match!"
     return 1
