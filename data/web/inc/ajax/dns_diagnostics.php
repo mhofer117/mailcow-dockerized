@@ -102,60 +102,33 @@ if ($_SESSION['mailcow_cc_role'] == "admin") {
       $mailcow_hostname
     );
   }
-  $records[] = array(
-    '_25._tcp.'.$autodiscover_config['smtp']['server'],
-    'TLSA',
-    generate_tlsa_digest($autodiscover_config['smtp']['server'], 25, 1)
-  );
+  
+  $services = [
+    [$autodiscover_config['smtp']['server'], 25, 1],
+  ];
+  
   if (!in_array($domain, $alias_domains)) {
-    $records[] = array(
-      '_'.$https_port.
-      '._tcp.'.$mailcow_hostname,
-      'TLSA',
-      generate_tlsa_digest($mailcow_hostname, $https_port)
-    );
-    $records[] = array(
-      '_'.$autodiscover_config['pop3']['tlsport'].
-      '._tcp.'.$autodiscover_config['pop3']['server'],
-      'TLSA',
-      generate_tlsa_digest($autodiscover_config['pop3']['server'], $autodiscover_config['pop3']['tlsport'], 1)
-    );
-    $records[] = array(
-      '_'.$autodiscover_config['imap']['tlsport'].
-      '._tcp.'.$autodiscover_config['imap']['server'],
-      'TLSA',
-      generate_tlsa_digest($autodiscover_config['imap']['server'], $autodiscover_config['imap']['tlsport'], 1)
-    );
-    $records[] = array(
-      '_'.$autodiscover_config['smtp']['port'].
-      '._tcp.'.$autodiscover_config['smtp']['server'],
-      'TLSA',
-      generate_tlsa_digest($autodiscover_config['smtp']['server'], $autodiscover_config['smtp']['port'])
-    );
-    $records[] = array(
-      '_'.$autodiscover_config['smtp']['tlsport'].
-      '._tcp.'.$autodiscover_config['smtp']['server'],
-      'TLSA',
-      generate_tlsa_digest($autodiscover_config['smtp']['server'], $autodiscover_config['smtp']['tlsport'], 1)
-    );
-    $records[] = array(
-      '_'.$autodiscover_config['imap']['port'].
-      '._tcp.'.$autodiscover_config['imap']['server'],
-      'TLSA',
-      generate_tlsa_digest($autodiscover_config['imap']['server'], $autodiscover_config['imap']['port'])
-    );
-    $records[] = array(
-      '_'.$autodiscover_config['pop3']['port'].
-      '._tcp.'.$autodiscover_config['pop3']['server'],
-      'TLSA',
-      generate_tlsa_digest($autodiscover_config['pop3']['server'], $autodiscover_config['pop3']['port'])
-    );
-    $records[] = array(
-      '_'.$autodiscover_config['sieve']['port'].
-      '._tcp.'.$autodiscover_config['sieve']['server'],
-      'TLSA',
-      generate_tlsa_digest($autodiscover_config['sieve']['server'], $autodiscover_config['sieve']['port'], 1)
-    );
+    $services[] = [$mailcow_hostname,                       $https_port,                             null];
+    $services[] = [$autodiscover_config['pop3']['server'],  $autodiscover_config['pop3']['tlsport'], 1];
+    $services[] = [$autodiscover_config['imap']['server'],  $autodiscover_config['imap']['tlsport'], 1];
+    $services[] = [$autodiscover_config['smtp']['server'],  $autodiscover_config['smtp']['port'],    null];
+    $services[] = [$autodiscover_config['smtp']['server'],  $autodiscover_config['smtp']['tlsport'], 1];
+    $services[] = [$autodiscover_config['imap']['server'],  $autodiscover_config['imap']['port'],    null];
+    $services[] = [$autodiscover_config['pop3']['server'],  $autodiscover_config['pop3']['port'],    null];
+    $services[] = [$autodiscover_config['sieve']['server'], $autodiscover_config['sieve']['port'],   1];
+  }
+  
+  foreach($services as list($server,$port,$starttls)) {
+    foreach(['aRSA','aECDSA'] as $ciphers) {
+      $digest = generate_tlsa_digest($server, $port, $starttls, $ciphers);
+      if($digest !== false) { // Check if negotation failed (because e.g. RSA or ECDSA isn't supported)
+        $records[] = array(
+          '_'.$port.'._tcp.'.$server,
+          'TLSA',
+          $digest
+        );
+      }
+    }
   }
 }
 $records[] = array(
@@ -356,7 +329,7 @@ foreach ($records as $record) {
     }
   }
 
-  foreach ($currents as &$current) {
+  foreach ($currents as $i => &$current) {
     if ($current['type'] == 'TXT' &&
       stripos($current['txt'], 'v=dmarc') === 0 &&
       $record[2] == $dmarc_link) {
@@ -384,6 +357,21 @@ foreach ($records as $record) {
     }
     elseif ($current['type'] != 'TXT' &&
       isset($data_field[$current['type']]) && $state != state_good) {
+        // Ignore $current TLSA record if it already matches another one in $records.
+        // E.g. hide found TLSA records for an RSA certificate in the status column
+        // of missing TLSA records for an ECDSA certificate.
+        if($current['type'] == 'TLSA' && $record[1] == 'TLSA') {
+          foreach($records as $other_record) {
+            if($record != $other_record &&
+              $other_record[1] == 'TLSA' &&
+              $other_record[0] == $current['host'] &&
+              $other_record[2] == $current[$data_field[$current['type']]]) {
+              unset($currents[$i]);
+              continue 2;
+            }
+          }
+        }
+        
         $state = state_nomatch;
         if ($current[$data_field[$current['type']]] == $record[2]) {
           $state = state_good;

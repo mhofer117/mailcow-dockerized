@@ -71,7 +71,7 @@ services:
             - clamd
 
     rspamd-mailcow:
-      image: mailcow/rspamd:1.38
+      image: mailcow/rspamd:1.39
       build: ./data/Dockerfiles/rspamd
       stop_grace_period: 30s
       depends_on:
@@ -317,6 +317,7 @@ services:
         - DBUSER=${DBUSER}
         - DBPASS=${DBPASS}
         - SKIP_LETS_ENCRYPT=${SKIP_LETS_ENCRYPT:-n}
+        - SKIP_ECDSA_CERT=${SKIP_ECDSA_CERT:-y}
         - SKIP_IP_CHECK=${SKIP_IP_CHECK:-n}
         - SKIP_HTTP_VERIFICATION=${SKIP_HTTP_VERIFICATION:-n}
         - LE_STAGING=${LE_STAGING:-n}
@@ -357,7 +358,7 @@ services:
         - /lib/modules:/lib/modules:ro
 
     watchdog-mailcow:
-      image: mailcow/watchdog:1.39
+      image: mailcow/watchdog:1.40
       # Debug
       #command: /watchdog.sh
       build: ./data/Dockerfiles/watchdog
@@ -405,7 +406,7 @@ services:
             - dockerapi
 
     solr-mailcow:
-      image: mailcow/solr:1.4
+      image: mailcow/solr:1.5
       build: ./data/Dockerfiles/solr
       restart: always
       volumes:

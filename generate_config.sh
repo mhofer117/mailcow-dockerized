@@ -182,6 +182,10 @@ ADDITIONAL_SAN=
 
 SKIP_LETS_ENCRYPT=n
 
+# Skip issuing Let's Encrypt ECDSA certificates - y/n
+
+SKIP_ECDSA_CERT=n
+
 # Skip IPv4 check in ACME container - y/n
 
 SKIP_IP_CHECK=n
@@ -252,4 +256,4 @@ mkdir -p data/assets/ssl
 chmod 600 mailcow.conf
 
 # copy but don't overwrite existing certificate
-cp -n data/assets/ssl-example/*.pem data/assets/ssl/
+cp -n -d data/assets/ssl-example/*.pem data/assets/ssl/

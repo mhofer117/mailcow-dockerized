@@ -22,14 +22,18 @@ if [[ "${SKIP_LETS_ENCRYPT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   exec $(readlink -f "$0")
 fi
 
+ACME_BASE=/var/lib/acme
+SSL_EXAMPLE=/var/lib/ssl-example
+
+# Symlink ECDSA to RSA certificate if not present
+[[ ! -f ${ACME_BASE}/ecdsa-cert.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-cert.pem ]] && ln -s cert.pem ${ACME_BASE}/ecdsa-cert.pem
+[[ ! -f ${ACME_BASE}/ecdsa-key.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-key.pem ]] && ln -s key.pem ${ACME_BASE}/ecdsa-key.pem
+
 log_f "Waiting for Docker API..." no_nl
 until ping dockerapi -c1 > /dev/null; do
   sleep 1
 done
 log_f "OK" no_date
-
-ACME_BASE=/var/lib/acme
-SSL_EXAMPLE=/var/lib/ssl-example
 
 mkdir -p ${ACME_BASE}/acme
 
@@ -57,15 +61,44 @@ if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]]; then
   ISSUER=$(openssl x509 -in ${ACME_BASE}/cert.pem -noout -issuer)
   if [[ ${ISSUER} != *"Let's Encrypt"* && ${ISSUER} != *"mailcow"* && ${ISSUER} != *"Fake LE Intermediate"* ]]; then
     log_f "Found certificate with issuer other than mailcow snake-oil CA and Let's Encrypt, do not replace server certificate..."
+
+    # Make sure we do not combine Letsencrypt ECDSA with another RSA certificate
+    # Remove ECDSA if that is the case
+    if [[ -f ${ACME_BASE}/ecdsa-cert.pem ]] && [[ -f ${ACME_BASE}/ecdsa-key.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-cert.pem ]] && [[ ! -L ${ACME_BASE}/ecdsa-key.pem ]]; then
+      ISSUER=$(openssl x509 -in ${ACME_BASE}/ecdsa-cert.pem -noout -issuer)
+      if [[ ${ISSUER} == *"Let's Encrypt"* || ${ISSUER} == *"mailcow"* || ${ISSUER} == *"Fake LE Intermediate"* ]]; then
+        log_f "Remove Let's Encrypt ECDSA certificate in favour of a custom RSA one"
+        ln -sf cert.pem ${ACME_BASE}/ecdsa-cert.pem
+        ln -sf key.pem ${ACME_BASE}/ecdsa-key.pem
+      fi
+    fi
     CUSTOM_CERT=1
   fi
 else
-  log_f "Restoring mailcow snake-oil certificates and restarting script..."
-  cp ${SSL_EXAMPLE}/cert.pem ${ACME_BASE}/cert.pem
-  cp ${SSL_EXAMPLE}/key.pem ${ACME_BASE}/key.pem
-  exec env TRIGGER_RESTART=1 $(readlink -f "$0")
+  if [[ -f ${ACME_BASE}/acme/cert.pem ]] && [[ -f ${ACME_BASE}/acme/key.pem ]] && verify_hash_match ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem; then
+    log_f "Restoring previous acme certificate and restarting script..."
+    cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/cert.pem
+    cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/key.pem
+
+    if [[ -f ${ACME_BASE}/acme/ecdsa-cert.pem ]] && [[ -f ${ACME_BASE}/acme/ecdsa-key.pem ]] && verify_hash_match ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/acme/ecdsa-key.pem; then
+      # Remove symlink before copying
+      cp --remove-destination ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/ecdsa-cert.pem
+      cp --remove-destination ${ACME_BASE}/acme/ecdsa-key.pem ${ACME_BASE}/ecdsa-key.pem
+    fi
+    # Restarting with env var set to trigger a restart,
+    exec env TRIGGER_RESTART=1 $(readlink -f "$0")
+  else
+    log_f "Restoring mailcow snake-oil certificates and restarting script..."
+    cp ${SSL_EXAMPLE}/cert.pem ${ACME_BASE}/cert.pem
+    cp ${SSL_EXAMPLE}/key.pem ${ACME_BASE}/key.pem
+    ln -sf cert.pem ${ACME_BASE}/ecdsa-cert.pem
+    ln -sf key.pem ${ACME_BASE}/ecdsa-key.pem
+    exec env TRIGGER_RESTART=1 $(readlink -f "$0")
+  fi
 fi
+
 chmod 600 ${ACME_BASE}/key.pem
+chmod 600 ${ACME_BASE}/ecdsa-key.pem
 
 log_f "Waiting for database... " no_nl
 while ! mysqladmin status --socket=/var/run/mysqld/mysqld.sock -u${DBUSER} -p${DBPASS} --silent; do
@@ -94,10 +127,16 @@ while true; do
 
   # Re-using previous acme-mailcow account and domain keys
   if [[ ! -f ${ACME_BASE}/acme/key.pem ]]; then
-    log_f "Generating missing domain private key..."
+    log_f "Generating missing domain private rsa key..."
     openssl genrsa 4096 > ${ACME_BASE}/acme/key.pem
   else
-    log_f "Using existing domain key ${ACME_BASE}/acme/key.pem"
+    log_f "Using existing domain rsa key ${ACME_BASE}/acme/key.pem"
+  fi
+  if [[ ! -f ${ACME_BASE}/acme/ecdsa-key.pem ]]; then
+    log_f "Generating missing domain private ecdsa key..."
+    openssl ecparam -genkey -name secp384r1 -noout > ${ACME_BASE}/acme/ecdsa-key.pem
+  else
+    log_f "Using existing domain ecdsa key ${ACME_BASE}/acme/ecdsa-key.pem"
   fi
   if [[ ! -f ${ACME_BASE}/acme/account.pem ]]; then
     log_f "Generating missing Lets Encrypt account key..."
@@ -107,6 +146,7 @@ while true; do
   fi
 
   chmod 600 ${ACME_BASE}/acme/key.pem
+  chmod 600 ${ACME_BASE}/acme/ecdsa-key.pem
   chmod 600 ${ACME_BASE}/acme/account.pem
 
   unset EXISTING_CERTS
