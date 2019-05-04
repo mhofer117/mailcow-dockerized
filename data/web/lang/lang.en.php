@@ -20,6 +20,7 @@ $lang['footer']['cancel'] = 'Cancel';
 $lang['footer']['hibp_nok'] = 'Matched! This is a potentially dangerous password!';
 $lang['footer']['hibp_ok'] = 'No match found.';
 
+$lang['danger']['transport_dest_exists'] = "Transport destination exists";
 $lang['danger']['unlimited_quota_acl'] = "Unlimited quota prohibited by ACL";
 $lang['danger']['mysql_error'] = "MySQL error: %s";
 $lang['danger']['redis_error'] = "Redis error: %s";
@@ -753,6 +754,7 @@ $lang['quarantine']['show_item'] = "Show item";
 $lang['quarantine']['check_hash'] = "Search file hash @ VT";
 $lang['quarantine']['qitem'] = "Quarantine item";
 $lang['quarantine']['subj'] = "Subject";
+$lang['quarantine']['recipients'] = "Recipients";
 $lang['quarantine']['text_plain_content'] = "Content (text/plain)";
 $lang['quarantine']['text_from_html_content'] = "Content (converted html)";
 $lang['quarantine']['atts'] = "Attachments";

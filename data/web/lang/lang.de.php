@@ -19,6 +19,7 @@ $lang['footer']['cancel'] = 'Abbrechen';
 $lang['footer']['hibp_nok'] = 'Übereinstimmung gefunden! Dieses Passwort ist potentiell gefährlich!';
 $lang['footer']['hibp_ok'] = 'Keine Übereinstimmung gefunden.';
 
+$lang['danger']['transport_dest_exists'] = "Transport Maps Ziel existiert bereits";
 $lang['danger']['unlimited_quota_acl'] = "Unendliche Quota untersagt durch ACL";
 $lang['danger']['mysql_error'] = "MySQL Fehler: %s";
 $lang['danger']['redis_error'] = "Redis Fehler: %s";
@@ -731,6 +732,7 @@ $lang['quarantine']['show_item'] = "Details";
 $lang['quarantine']['check_hash'] = "Checksumme auf VirusTotal suchen";
 $lang['quarantine']['qitem'] = "Quarantäneeintrag";
 $lang['quarantine']['subj'] = "Betreff";
+$lang['quarantine']['recipients'] = "Empfänger";
 $lang['quarantine']['text_plain_content'] = "Inhalt (text/plain)";
 $lang['quarantine']['text_from_html_content'] = "Inhalt (html, konvertiert)";
 $lang['quarantine']['atts'] = "Anhänge";

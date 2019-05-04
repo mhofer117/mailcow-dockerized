@@ -16,6 +16,11 @@ if [[ "${SKIP_HTTP_VERIFICATION}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   SKIP_HTTP_VERIFICATION=y
 fi
 
+# Request certificate for MAILCOW_HOSTNAME ony
+if [[ "${ONLY_MAILCOW_HOSTNAME}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+  ONLY_MAILCOW_HOSTNAME=y
+fi
+
 if [[ "${SKIP_LETS_ENCRYPT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   log_f "SKIP_LETS_ENCRYPT=y, skipping Let's Encrypt..."
   sleep 365d
@@ -61,7 +66,7 @@ fi
 [[ ! -f ${ACME_BASE}/dhparams.pem ]] && cp ${SSL_EXAMPLE}/dhparams.pem ${ACME_BASE}/dhparams.pem
 
 CUSTOM_CERT=0
-if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]]; then
+if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]] && [[ $(stat -c%s ${ACME_BASE}/cert.pem) != 0 ]]; then
   ISSUER=$(openssl x509 -in ${ACME_BASE}/cert.pem -noout -issuer)
   if [[ ${ISSUER} != *"Let's Encrypt"* && ${ISSUER} != *"mailcow"* && ${ISSUER} != *"Fake LE Intermediate"* ]]; then
     log_f "Found certificate with issuer other than mailcow snake-oil CA and Let's Encrypt, do not replace server certificate..."
@@ -242,6 +247,7 @@ while true; do
     log_f "No A or AAAA record found for hostname ${MAILCOW_HOSTNAME}"
   fi
 
+  if [[ ${ONLY_MAILCOW_HOSTNAME} != "y" ]]; then
   for SAN in "${ADDITIONAL_SAN_ARR[@]}"; do
     # Skip on CAA errors for SAN
     SAN_PARENT_DOMAIN=$(echo ${SAN} | cut -d. -f2-)
@@ -291,6 +297,7 @@ while true; do
       log_f "No A or AAAA record found for hostname ${SAN}"
     fi
   done
+  fi
 
   # Unique elements
   SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
@@ -346,6 +353,7 @@ while true; do
     SQL_DOMAIN_ARR+=("${domains}")
   done < <(mysql --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT domain FROM domain WHERE backupmx=0" -Bs)
 
+  if [[ ${ONLY_MAILCOW_HOSTNAME} != "y" ]]; then
   for SQL_DOMAIN in "${SQL_DOMAIN_ARR[@]}"; do
     unset VALIDATED_CONFIG_DOMAINS
     declare -a VALIDATED_CONFIG_DOMAINS
@@ -424,6 +432,7 @@ while true; do
       fi
     fi
   done
+  fi
 
   if [[ -z ${VALIDATED_CERTIFICATES[*]} ]]; then
     log_f "Cannot validate any hostnames, skipping Let's Encrypt for 1 hour."

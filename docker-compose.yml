@@ -169,7 +169,7 @@ services:
             - sogo
 
     dovecot-mailcow:
-      image: mailcow/dovecot:1.68
+      image: mailcow/dovecot:1.70
       build: ./data/Dockerfiles/dovecot
       cap_add:
         - NET_BIND_SERVICE
@@ -305,7 +305,7 @@ services:
     acme-mailcow:
       depends_on:
         - nginx-mailcow
-      image: mailcow/acme:1.52
+      image: mailcow/acme:1.54
       build: ./data/Dockerfiles/acme
       dns:
         - ${IPV4_NETWORK:-172.22.1}.254
@@ -320,6 +320,7 @@ services:
         - SKIP_ECDSA_CERT=${SKIP_ECDSA_CERT:-y}
         - SKIP_IP_CHECK=${SKIP_IP_CHECK:-n}
         - SKIP_HTTP_VERIFICATION=${SKIP_HTTP_VERIFICATION:-n}
+        - ONLY_MAILCOW_HOSTNAME=${ONLY_MAILCOW_HOSTNAME:-n}
         - LE_STAGING=${LE_STAGING:-n}
         - TZ=${TZ}
       volumes:
@@ -358,14 +359,14 @@ services:
         - /lib/modules:/lib/modules:ro
 
     watchdog-mailcow:
-      image: mailcow/watchdog:1.40
+      image: mailcow/watchdog:1.41
       # Debug
       #command: /watchdog.sh
       build: ./data/Dockerfiles/watchdog
-      oom_kill_disable: true
       volumes:
         - rspamd-vol-1:/var/lib/rspamd
         - mysql-socket-vol-1:/var/run/mysqld/
+        - ./data/assets/ssl:/etc/ssl/mail/:ro
       restart: always
       environment:
         - LOG_LINES=${LOG_LINES:-9999}
