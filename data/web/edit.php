@@ -379,7 +379,6 @@ if (isset($_SESSION['mailcow_cc_role'])) {
             <div class="btn-group" data-acl="<?=$_SESSION['acl']['spam_policy'];?>">
               <a class="btn btn-sm btn-default" id="toggle_multi_select_all" data-id="policy_wl_domain" href="#"><span class="glyphicon glyphicon-check" aria-hidden="true"></span> <?=$lang['mailbox']['toggle_all'];?></a>
               <a class="btn btn-sm btn-danger" data-action="delete_selected" data-id="policy_wl_domain" data-api-url='delete/domain-policy' href="#"><?=$lang['mailbox']['remove'];?></a></li>
-              </ul>
             </div>
           </div>
           <form class="form-inline" data-id="add_wl_policy_domain">
@@ -401,7 +400,6 @@ if (isset($_SESSION['mailcow_cc_role'])) {
             <div class="btn-group" data-acl="<?=$_SESSION['acl']['spam_policy'];?>">
               <a class="btn btn-sm btn-default" id="toggle_multi_select_all" data-id="policy_bl_domain" href="#"><span class="glyphicon glyphicon-check" aria-hidden="true"></span> <?=$lang['mailbox']['toggle_all'];?></a>
               <a class="btn btn-sm btn-danger" data-action="delete_selected" data-id="policy_bl_domain" data-api-url='delete/domain-policy' href="#"><?=$lang['mailbox']['remove'];?></a></li>
-              </ul>
             </div>
           </div>
           <form class="form-inline" data-id="add_bl_policy_domain">
@@ -1087,7 +1085,8 @@ if (isset($_SESSION['mailcow_cc_role'])) {
             <div class="form-group">
               <label class="control-label col-sm-2" for="custom_params"><?=$lang['add']['custom_params'];?></label>
               <div class="col-sm-10">
-              <input type="text" class="form-control" name="custom_params" id="custom_params" value="<?=htmlspecialchars($result['custom_params'], ENT_QUOTES, 'UTF-8');?>">
+              <input type="text" class="form-control" name="custom_params" id="custom_params" value="<?=htmlspecialchars($result['custom_params'], ENT_QUOTES, 'UTF-8');?>" placeholder="--dry --some-param=xy --other-param=yx">
+              <small class="help-block"><?=$lang['add']['custom_params_hint'];?></small>
               </div>
             </div>
             <div class="form-group">
