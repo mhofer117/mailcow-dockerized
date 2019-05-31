@@ -256,6 +256,25 @@ function hasMailboxObjectAccess($username, $role, $object) {
   }
 	return false;
 }
+function hasAliasObjectAccess($username, $role, $object) {
+	global $pdo;
+	if (!filter_var(html_entity_decode(rawurldecode($username)), FILTER_VALIDATE_EMAIL) && !ctype_alnum(str_replace(array('_', '.', '-'), '', $username))) {
+		return false;
+	}
+	if ($role != 'admin' && $role != 'domainadmin' && $role != 'user') {
+		return false;
+	}
+	if ($username == $object) {
+		return true;
+	}
+  $stmt = $pdo->prepare("SELECT `domain` FROM `alias` WHERE `address` = :object");
+  $stmt->execute(array(':object' => $object));
+  $row = $stmt->fetch(PDO::FETCH_ASSOC);
+  if (isset($row['domain']) && hasDomainAccess($username, $role, $row['domain'])) {
+    return true;
+  }
+	return false;
+}
 function pem_to_der($pem_key) {
   // Need to remove BEGIN/END PUBLIC KEY
   $lines = explode("\n", trim($pem_key));
@@ -680,7 +699,7 @@ function user_get_alias_details($username) {
   while ($row = array_shift($run)) {
     $data['aliases_also_send_as'] = $row['send_as'];
   }
-  $stmt = $pdo->prepare("SELECT IFNULL(CONCAT(GROUP_CONCAT(DISTINCT `send_as` SEPARATOR ', '), ', ', GROUP_CONCAT(DISTINCT CONCAT('@',`alias_domain`) SEPARATOR ', ')), '&#10008;') AS `send_as` FROM `sender_acl` LEFT JOIN `alias_domain` ON `alias_domain`.`target_domain` =  TRIM(LEADING '@' FROM `send_as`) WHERE `logged_in_as` = :username AND `send_as` LIKE '@%';");
+  $stmt = $pdo->prepare("SELECT CONCAT_WS(', ', IFNULL(GROUP_CONCAT(DISTINCT `send_as` SEPARATOR ', '), '&#10008;'), GROUP_CONCAT(DISTINCT CONCAT('@',`alias_domain`) SEPARATOR ', ')) AS `send_as` FROM `sender_acl` LEFT JOIN `alias_domain` ON `alias_domain`.`target_domain` =  TRIM(LEADING '@' FROM `send_as`) WHERE `logged_in_as` = :username AND `send_as` LIKE '@%';");
   $stmt->execute(array(':username' => $username));
   $run = $stmt->fetchAll(PDO::FETCH_ASSOC);
   while ($row = array_shift($run)) {

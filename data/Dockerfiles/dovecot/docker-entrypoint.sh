@@ -139,6 +139,23 @@ echo ${RAND_USER}@mailcow.local:{SHA1}$(echo -n ${RAND_PASS} | sha1sum | awk '{p
 echo ${RAND_USER}@mailcow.local::5000:5000:::: > /usr/local/etc/dovecot/dovecot-master.userdb
 echo ${RAND_USER}@mailcow.local:${RAND_PASS} > /etc/sogo/sieve.creds
 
+if [[ -z ${MAILDIR_SUB} ]]; then
+  MAILDIR_SUB_SHARED=
+else
+  MAILDIR_SUB_SHARED=/${MAILDIR_SUB}
+fi
+cat <<EOF > /usr/local/etc/dovecot/shared_namespace.conf
+# Auto-generated file
+namespace {
+    type = shared
+    separator = /
+    prefix = Shared/%%u/
+    location = maildir:%%h${MAILDIR_SUB_SHARED}:INDEX=~${MAILDIR_SUB_SHARED}/Shared/%%u;CONTROL=~${MAILDIR_SUB_SHARED}/Shared/%%u
+    subscriptions = no
+    list = children
+}
+EOF
+
 if [[ "${ALLOW_ADMIN_EMAIL_LOGIN}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
     # Create random master Password for SOGo 'login as user' via proxy auth
     RAND_PASS=$(cat /dev/urandom | tr -dc 'a-z0-9' | fold -w 32 | head -n 1)
@@ -189,7 +206,7 @@ chmod +x /usr/local/lib/dovecot/sieve/rspamd-pipe-ham \
 
 # Setup cronjobs
 echo '* * * * *    root  /usr/local/bin/imapsync_cron.pl 2>&1 | /usr/bin/logger' > /etc/cron.d/imapsync
-echo '30 3 * * *   vmail /usr/local/bin/doveadm quota recalc -A' > /etc/cron.d/dovecot-sync
+#echo '30 3 * * *   vmail /usr/local/bin/doveadm quota recalc -A' > /etc/cron.d/dovecot-sync
 echo '* * * * *    vmail /usr/local/bin/trim_logs.sh >> /dev/console 2>&1' > /etc/cron.d/trim_logs
 echo '25 * * * *   vmail /usr/local/bin/maildir_gc.sh >> /dev/console 2>&1' > /etc/cron.d/maildir_gc
 echo '30 1 * * *   root  /usr/local/bin/sa-rules.sh  >> /dev/console 2>&1' > /etc/cron.d/sa-rules
