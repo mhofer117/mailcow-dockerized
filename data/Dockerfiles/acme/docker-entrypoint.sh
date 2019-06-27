@@ -367,7 +367,7 @@ while true; do
       ADDITIONAL_SAN_ARR+=($i)
     fi
   done
-  ADDITIONAL_WC_ARR+=('autodiscover')
+  ADDITIONAL_WC_ARR+=('autodiscover' 'autoconfig')
 
   # Start IP detection
   log_f "Detecting IP addresses... " no_nl
