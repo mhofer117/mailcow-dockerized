@@ -101,7 +101,7 @@ cat <<EOF > /var/lib/sogo/GNUstep/Defaults/sogod.plist
     <key>OCSAclURL</key>
     <string>mysql://${DBUSER}:${DBPASS}@%2Fvar%2Frun%2Fmysqld%2Fmysqld.sock/${DBNAME}/sogo_acl</string>
     <key>SOGoIMAPServer</key>
-    <string>imap://${IPV4_NETWORK}.250:143/?tls=YES</string>
+    <string>imaps://${IPV4_NETWORK}.250:993</string>
     <key>SOGoTrustProxyAuthentication</key>
     <string>${TRUST_PROXY}</string>
     <key>SOGoEncryptionKey</key>
@@ -199,5 +199,11 @@ fi
 # Rsync web content
 echo "Syncing web content with named volume"
 rsync -a /usr/lib/GNUstep/SOGo/. /sogo_web/
+
+# Creating cronjobs
+echo "* * * * *   sogo   /usr/sbin/sogo-ealarms-notify -p /etc/sogo/sieve.creds 2>/dev/null" > /etc/cron.d/sogo
+echo "* * * * *   sogo   /usr/sbin/sogo-tool expire-sessions ${SOGO_EXPIRE_SESSION}" >> /etc/cron.d/sogo
+echo "0 0 * * *   sogo   /usr/sbin/sogo-tool update-autoreply -p /etc/sogo/sieve.creds" >> /etc/cron.d/sogo
+
 
 exec gosu sogo /usr/sbin/sogod

@@ -1,11 +1,8 @@
 # mailcow: dockerized - 🐮 + 🐋 = 💕
 
-## 💡 Entwickler gesucht!
-Wir möchten die Kuh clustern und noch sicherererer machen, daher suchen wir dringend Entwickler, die dabei unterstützen. Bis hin zur Festanstellung alle Möglichkeiten offen. Bitte meldet euch bei info@servercow.de
-
 ## Want to support mailcow?
 
-Donate via **PayPal** [![Donate](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=JWBSYHF4SMC68) or via **Liberapay** [![Liberapay.com](https://mailcow.email/img/lp.png)](https://liberapay.com/mailcow)
+Please [consider a support contract (around 30 € per month) with Servercow](https://www.servercow.de/mailcow#support) to support further development. _We_ support _you_ while _you_ support _us_. :)
 
 Or just spread the word: moo.
 

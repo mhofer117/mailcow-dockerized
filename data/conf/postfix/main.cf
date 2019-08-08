@@ -111,8 +111,7 @@ smtpd_tls_mandatory_ciphers = high
 virtual_alias_maps = proxy:mysql:/opt/postfix/conf/sql/mysql_virtual_alias_maps.cf,
   proxy:mysql:/opt/postfix/conf/sql/mysql_virtual_resource_maps.cf,
   proxy:mysql:/opt/postfix/conf/sql/mysql_virtual_spamalias_maps.cf,
-  proxy:mysql:/opt/postfix/conf/sql/mysql_virtual_alias_domain_maps.cf,
-  proxy:mysql:/opt/postfix/conf/sql/mysql_virtual_alias_domain_catchall_maps.cf
+  proxy:mysql:/opt/postfix/conf/sql/mysql_virtual_alias_domain_maps.cf
 virtual_gid_maps = static:5000
 virtual_mailbox_base = /var/vmail/
 virtual_mailbox_domains = proxy:mysql:/opt/postfix/conf/sql/mysql_virtual_domains_maps.cf
@@ -142,3 +141,4 @@ mail_name = Postcow
 transport_maps = pcre:/opt/postfix/conf/local_transport, proxy:mysql:/opt/postfix/conf/sql/mysql_transport_maps.cf
 smtp_sasl_auth_soft_bounce = no
 postscreen_discard_ehlo_keywords = silent-discard, dsn
+compatibility_level = 2
