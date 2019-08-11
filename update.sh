@@ -25,6 +25,20 @@ export LC_ALL=C
 DATE=$(date +%Y-%m-%d_%H_%M_%S)
 BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
+function prefetch_images() {
+  [[ -z ${BRANCH} ]] && { echo -e "\e[33m\nUnknown branch...\e[0m"; exit 1; }
+  git fetch origin #${BRANCH}
+  while read image; do
+    RET_C=0
+    until docker pull ${image}; do
+      RET_C=$((RET_C + 1))
+      echo -e "\e[33m\nError pulling $image, retrying...\e[0m"
+      [ ${RET_C} -gt 3 ] && { echo -e "\e[31m\nToo many failed retries, exiting\e[0m"; exit 1; }
+      sleep 1
+    done
+  done < <(git show origin/${BRANCH}:docker-compose.yml | grep "image:" | awk '{ gsub("image:","", $3); print $2 }')
+}
+
 docker_garbage() {
   IMGS_TO_DELETE=()
   for container in $(grep -oP "image: \Kmailcow.+" docker-compose.yml); do
@@ -95,6 +109,11 @@ while (($#)); do
       docker_garbage
       exit 0
     ;;
+    --prefetch)
+      echo -e "\e[32mPrefetching images...\e[0m"
+      prefetch_images
+      exit 0
+    ;;
     --help|-h)
     echo './update.sh [-c|--check, --ours, --gc, -h|--help]
 
@@ -146,6 +165,7 @@ CONFIG_ARRAY=(
   "SKIP_ECDSA_CERT"
   "ALLOW_ADMIN_EMAIL_LOGIN"
   "SKIP_HTTP_VERIFICATION"
+  "SOGO_EXPIRE_SESSION"
 )
 
 sed -i '$a\' mailcow.conf
@@ -274,6 +294,12 @@ for option in ${CONFIG_ARRAY[@]}; do
       echo '# Notify about banned IP. Includes whois lookup.' >> mailcow.conf
       echo "WATCHDOG_NOTIFY_BAN=y" >> mailcow.conf
   fi
+  elif [[ ${option} == "SOGO_EXPIRE_SESSION" ]]; then
+    if ! grep -q ${option} mailcow.conf; then
+      echo "Adding new option \"${option}\" to mailcow.conf"
+      echo '# SOGo session timeout in minutes' >> mailcow.conf
+      echo "SOGO_EXPIRE_SESSION=480" >> mailcow.conf
+  fi
   elif ! grep -q ${option} mailcow.conf; then
     echo "Adding new option \"${option}\" to mailcow.conf"
     echo "${option}=n" >> mailcow.conf
@@ -313,17 +339,13 @@ if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   exit 0
 fi
 
-echo -e "\e[32mPrefetching images...\e[0m"
-while read image; do
-  RET_C=0
-  until docker pull ${image}; do
-    RET_C=$((RET_C + 1))
-    echo -e "\e[33m\nError pulling $image, retrying...\e[0m"
-    [ ${RET_C} -gt 3 ] && { echo -e "\e[31m\nToo many failed retries, exiting\e[0m"; exit 1; }
-    sleep 1
-  done
-done < <(git show origin/${BRANCH}:docker-compose.yml | grep "image:" | awk '{ gsub("image:","", $3); print $2 }')
+DIFF_FILE=diff_before_update_$(date +"%Y-%m-%d-%H-%M-%S")
+echo -e "\e[32mSaving diff to ${DIFF_FILE}...\e[0m"
+git diff --stat > ${DIFF_FILE}
+git diff >> ${DIFF_FILE}
 
+echo -e "\e[32mPrefetching images...\e[0m"
+prefetch_images
 
 echo -e "Stopping mailcow... "
 sleep 2

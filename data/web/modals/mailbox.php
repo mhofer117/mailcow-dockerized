@@ -21,7 +21,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['domain'];?>:</label>
+            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['domain'];?></label>
             <div class="col-sm-10">
               <select class="full-width-select" data-live-search="true" id="addSelectDomain" name="domain" required>
               <?php
@@ -87,7 +87,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
       <div class="modal-body">
         <form class="form-horizontal" data-cached-form="true" data-id="add_domain" role="form">
           <div class="form-group">
-            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['domain'];?>:</label>
+            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['domain'];?></label>
             <div class="col-sm-10">
             <input type="text" autocorrect="off" autocapitalize="none" class="form-control" name="domain" required>
             </div>
@@ -126,6 +126,14 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             <label class="control-label col-sm-2" for="quota"><?=$lang['add']['domain_quota_m'];?></label>
             <div class="col-sm-10">
             <input type="number" class="form-control" name="quota" value="10240" required>
+            </div>
+          </div>
+          <div class="form-group">
+            <div class="col-sm-offset-2 col-sm-10">
+              <div class="checkbox">
+                <label><input type="checkbox" value="1" name="gal" checked> <?=$lang['edit']['gal'];?></label>
+                <small class="help-block"><?=$lang['edit']['gal_info'];?></small>
+              </div>
             </div>
           </div>
           <div class="form-group">
@@ -191,7 +199,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['domain'];?>:</label>
+            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['domain'];?></label>
             <div class="col-sm-10">
               <select data-live-search="true" name="domain" title="<?=$lang['add']['select'];?>" required>
               <?php
@@ -203,7 +211,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['kind'];?>:</label>
+            <label class="control-label col-sm-2" for="domain"><?=$lang['add']['kind'];?></label>
             <div class="col-sm-10">
               <select name="kind" title="<?=$lang['add']['select'];?>" required>
                 <option value="location">Location</option>
@@ -213,7 +221,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="multiple_bookings_select"><?=$lang['add']['multiple_bookings'];?>:</label>
+            <label class="control-label col-sm-2" for="multiple_bookings_select"><?=$lang['add']['multiple_bookings'];?></label>
             <div class="col-sm-10">
               <select name="multiple_bookings_select" id="multiple_bookings_select" title="<?=$lang['add']['select'];?>" required>
                 <option value="0"><?=$lang['mailbox']['booking_0'];?></option>
@@ -368,7 +376,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
         <p class="help-block"><?=$lang['add']['syncjob_hint'];?></p>
         <form class="form-horizontal" data-cached-form="true" role="form" data-id="add_syncjob">
           <div class="form-group">
-            <label class="control-label col-sm-2" for="username"><?=$lang['add']['username'];?>:</label>
+            <label class="control-label col-sm-2" for="username"><?=$lang['add']['username'];?></label>
             <div class="col-sm-10">
               <select data-live-search="true" name="username" required>
               <?php
@@ -544,7 +552,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
       <div class="modal-body">
         <form class="form-horizontal" data-cached-form="true" role="form" data-id="add_filter">
           <div class="form-group">
-            <label class="control-label col-sm-2" for="username"><?=$lang['add']['username'];?>:</label>
+            <label class="control-label col-sm-2" for="username"><?=$lang['add']['username'];?></label>
             <div class="col-sm-10">
               <select data-live-search="true" name="username" required>
               <?php
@@ -562,7 +570,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="filter_type"><?=$lang['add']['sieve_type'];?>:</label>
+            <label class="control-label col-sm-2" for="filter_type"><?=$lang['add']['sieve_type'];?></label>
             <div class="col-sm-10">
               <select id="addFilterType" name="filter_type" required>
                 <option value="prefilter">Prefilter</option>
@@ -571,7 +579,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="script_desc"><?=$lang['add']['sieve_desc'];?>:</label>
+            <label class="control-label col-sm-2" for="script_desc"><?=$lang['add']['sieve_desc'];?></label>
             <div class="col-sm-10">
             <input type="text" class="form-control" name="script_desc" required maxlength="255">
             </div>
@@ -612,7 +620,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
       <div class="modal-body">
         <form class="form-horizontal" data-cached-form="true" role="form" data-id="add_bcc">
           <div class="form-group">
-            <label class="control-label col-sm-2" for="local_dest"><?=$lang['mailbox']['bcc_local_dest'];?>:</label>
+            <label class="control-label col-sm-2" for="local_dest"><?=$lang['mailbox']['bcc_local_dest'];?></label>
             <div class="col-sm-10">
               <select data-live-search="true" name="local_dest" required>
               <?php
@@ -641,7 +649,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="type"><?=$lang['mailbox']['bcc_map_type'];?>:</label>
+            <label class="control-label col-sm-2" for="type"><?=$lang['mailbox']['bcc_map_type'];?></label>
             <div class="col-sm-10">
               <select name="type" required>
                 <option value="sender"><?=$lang['mailbox']['bcc_sender_map'];?></option>
@@ -650,7 +658,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="bcc_dest"><?=$lang['mailbox']['bcc_destination'];?>:</label>
+            <label class="control-label col-sm-2" for="bcc_dest"><?=$lang['mailbox']['bcc_destination'];?></label>
             <div class="col-sm-10">
               <input type="text" class="form-control" name="bcc_dest">
             </div>
@@ -731,7 +739,7 @@ if (!isset($_SESSION['mailcow_cc_role'])) {
             </div>
           </div>
           <div class="form-group">
-            <label class="control-label col-sm-2" for="policy"><?=$lang['mailbox']['tls_map_policy'];?>:</label>
+            <label class="control-label col-sm-2" for="policy"><?=$lang['mailbox']['tls_map_policy'];?></label>
             <div class="col-sm-10">
               <select class="full-width-select" name="policy" required>
                 <option value="none">none</option>

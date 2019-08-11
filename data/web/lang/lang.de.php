@@ -116,6 +116,7 @@ $lang['success']['domain_admin_added'] = 'Domain-Administrator %s wurde angelegt
 $lang['success']['admin_added'] = 'Administrator %s wurde angelegt';
 $lang['success']['admin_modified'] = 'Änderungen am Administrator wurden gespeichert';
 $lang['success']['admin_api_modified'] = "Änderungen an API wurden gespeichert";
+$lang['success']['license_modified'] = "Änderungen an Lizenz wurden gespeichert";
 $lang['danger']['username_invalid'] = 'Benutzername %s kann nicht verwendet werden';
 $lang['danger']['password_mismatch'] = 'Passwort-Wiederholung stimmt nicht überein';
 $lang['danger']['password_complexity'] = 'Passwort entspricht nicht den Richtlinien';
@@ -151,7 +152,7 @@ $lang['danger']['domain_quota_m_in_use'] = 'Domain Speicherplatzlimit muss grö�
 $lang['danger']['mailboxes_in_use'] = 'Maximale Anzahl an Mailboxen muss größer oder gleich %d sein';
 $lang['danger']['aliases_in_use'] = 'Maximale Anzahl an Aliassen muss größer oder gleich %d sein';
 $lang['danger']['sender_acl_invalid'] = 'Sender ACL %s ist ungültig';
-$lang['danger']['domain_not_empty'] = 'Kann nur leere Domains entfernen';
+$lang['danger']['domain_not_empty'] = 'Domain %s ist nicht leer';
 $lang['danger']['validity_missing'] = 'Bitte geben Sie eine Gültigkeitsdauer an';
 $lang['user']['loading'] = "Lade...";
 $lang['user']['force_pw_update'] = 'Das Passwort für diesen Benutzer <b>muss</b> geändert werden, damit die Zugriffssperre auf die Groupwarekomponenten wieder freigeschaltet wird.';
@@ -236,7 +237,7 @@ $lang['user']['eas_reset_help'] = 'In vielen Fällen kann ein ActiveSync Profil 
 
 $lang['user']['sogo_profile_reset'] = 'SOGo Profil zurücksetzen';
 $lang['user']['sogo_profile_reset_now'] = 'Profil jetzt zurücksetzen';
-$lang['user']['sogo_profile_reset_help'] = 'Das Profil wird zuzüglich aller Daten <b>unwiederbringlich gelöscht</b>.';
+$lang['user']['sogo_profile_reset_help'] = 'Das Profil wird inklusive <strong>aller</strong> Daten <b>unwiederbringlich gelöscht</b>.';
 
 $lang['user']['encryption'] = 'Verschlüsselung';
 $lang['user']['username'] = 'Benutzername';
@@ -347,8 +348,10 @@ $lang['edit']['max_mailboxes'] = 'Max. Mailboxanzahl:';
 $lang['edit']['title'] = 'Objekt bearbeiten';
 $lang['edit']['target_address'] = 'Ziel-Adresse(n) <small>(getrennt durch Komma)</small>:';
 $lang['edit']['active'] = 'Aktiv';
+$lang['add']['gal'] = 'Globales Adressbuch';
 $lang['edit']['gal'] = 'Globales Adressbuch';
-$lang['edit']['gal_info'] = 'Das Globale Adressbuch enthält alle Objekte einer Domain und kann durch keinen Benutzer editiert werden. <b>Zum Anwenden einer Änderung muss SOGo neugestartet werden.</b>';
+$lang['add']['gal_info'] = 'Das Globale Adressbuch enthält alle Objekte einer Domain und kann durch keinen Benutzer editiert werden. Die Verfügbarkeitsinformation in SOGo ist nur bei eingeschaltetem globalen Adressbuch ersichtlich! <b>Zum Anwenden einer Änderung muss SOGo neugestartet werden.</b>';
+$lang['edit']['gal_info'] = 'Das Globale Adressbuch enthält alle Objekte einer Domain und kann durch keinen Benutzer editiert werden. Die Verfügbarkeitsinformation in SOGo ist nur bei eingeschaltetem globalen Adressbuch ersichtlich <b>Zum Anwenden einer Änderung muss SOGo neugestartet werden.</b>';
 $lang['edit']['force_pw_update'] = 'Erzwinge Passwortänderung bei nächstem Login';
 $lang['edit']['force_pw_update_info'] = 'Dem Benutzer wird lediglich der Zugang zur mailcow UI ermöglicht.';
 $lang['edit']['sogo_access'] = 'SOGo Zugriffsrecht';
@@ -367,9 +370,9 @@ $lang['edit']['max_aliases'] = 'Max. Aliasse:';
 $lang['edit']['max_quota'] = 'Max. Größe per Mailbox (MiB):';
 $lang['edit']['domain_quota'] = 'Domain Speicherplatz gesamt (MiB):';
 $lang['edit']['backup_mx_options'] = 'Backup MX Optionen:';
-$lang['edit']['relay_domain'] = 'Relay Domain';
+$lang['edit']['relay_domain'] = 'Diese Domain relayen';
 $lang['edit']['relay_all'] = 'Alle Empfänger-Adressen relayen';
-$lang['edit']['relay_all_info'] = '<small>Wenn Sie <b>nicht</b> alle Empfänger-Adressen relayen möchten, müssen Sie eine ("blinde") Mailbox für jede Adresse, die relayt werden soll, erstellen.</small>';
+$lang['edit']['relay_all_info'] = '<small>Wenn <b>nicht</b> alle Empfänger-Adressen relayt werden sollen, müssen "blinde" Mailboxen für jede Adresse, die relayt werden soll, erstellen werden.</small>';
 $lang['edit']['full_name'] = 'Voller Name';
 $lang['edit']['quota_mb'] = 'Speicherplatz (MiB)';
 $lang['edit']['sender_acl'] = 'Darf Nachrichten versenden als';
@@ -743,6 +746,7 @@ $lang['quarantine']['neutral_danger'] = "Neutral/ohne Bewertung";
 $lang['quarantine']['medium_danger'] = "Mittlere Gefahr";
 $lang['quarantine']['high_danger'] = "Hohe Gefahr";
 $lang['quarantine']['danger'] = "Gefahr";
+$lang['quarantine']['spam_score'] = "Bewertung";
 $lang['quarantine']['qhandler_success'] = "Aktion wurde an das System übergeben. Sie dürfen dieses Fenster nun schließen.";
 $lang['warning']['fuzzy_learn_error'] = "Fuzzy Lernfehler: %s";
 $lang['danger']['spam_learn_error'] = "Spam Lernfehler: %s";
@@ -752,7 +756,7 @@ $lang['debug']['log_info'] = '<p>mailcow <b>in-memory Logs</b> werden in Redis L
   <br>In-memory Logs sind vergänglich und nicht zur ständigen Aufbewahrung bestimmt. Alle Anwendungen, die in-memory protokollieren, schreiben ebenso in den Docker Daemon.
   <br>Das in-memory Protokoll versteht sich als schnelle Übersicht zum Debugging eines Containers, für komplexere Protokolle sollte der Docker Daemon konsultiert werden.</p>
   <p><b>Externe Logs</b> werden via API externer Applikationen bezogen.</p>
-  <p><b>Statische Logs</b> sind weitesgehend Aktivitätsprotokolle, die nicht in den Docker Daemon geschrieben werden, jedoch permanent verfügbar sein müssen (ausgeschloßen API Logs).</p>';
+  <p><b>Statische Logs</b> sind weitestgehend Aktivitätsprotokolle, die nicht in den Docker Daemon geschrieben werden, jedoch permanent verfügbar sein müssen (ausgeschlossen API Logs).</p>';
 
 $lang['debug']['in_memory_logs'] = 'In-memory Logs';
 $lang['debug']['external_logs'] = 'Externe Logs';
@@ -806,6 +810,7 @@ $lang['success']['tls_policy_map_entry_saved'] = 'TLS-Richtlinieneintrag "%s" wu
 $lang['success']['tls_policy_map_entry_deleted'] = 'TLS-Richtlinie mit der ID %s wurde gelöscht';
 $lang['mailbox']['add_tls_policy_map'] = "TLS-Richtlinieneintrag hinzufügen";
 $lang['danger']['tls_policy_map_parameter_invalid'] = "Parameter ist ungültig";
+$lang['danger']['temp_error'] = "Temporärer Fehler";
 
 $lang['oauth2']['scope_ask_permission'] = 'Eine Anwendung hat um die folgenden Berechtigungen gebeten';
 $lang['oauth2']['profile'] = 'Profil';
@@ -831,3 +836,19 @@ $lang['danger']['text_empty'] = 'Text darf nicht leer sein';
 $lang['danger']['subject_empty'] = 'Betreff darf nicht leer sein';
 $lang['danger']['from_invalid'] = 'From address must be a valid email address';
 $lang['danger']['network_host_invalid'] = 'Netzwerk oder Host ungültig: %s';
+
+$lang['add']['mailbox_quota_def'] = 'Standard-Quota einer Mailbox:';
+$lang['edit']['mailbox_quota_def'] = 'Standard-Quota einer Mailbox:';
+$lang['danger']['mailbox_defquota_exceeds_mailbox_maxquota'] = 'Standard-Quota überschreitet das Limit der maximal erlaubten Größe einer Mailbox';
+$lang['danger']['defquota_empty'] = 'Standard-Quota darf nicht 0 sein';
+$lang['mailbox']['mailbox_defquota'] = 'Standard-Quota';
+
+$lang['admin']['api_info'] = 'Das API befindet sich noch in Entwicklung, eine Dokumentation ist ausstehend.';
+
+$lang['admin']['guid_and_license'] = 'GUID & Lizenz';
+$lang['admin']['guid'] = 'GUID - Eindeutige Instanz-ID';
+$lang['admin']['license_info'] = 'Eine Lizenz ist nicht erforderlich, hilft jedoch der Entwicklung mailcows.<br><a href="https://www.servercow.de/mailcow#sal" target="_blank" alt="SAL Bestellung">Hier kann die mailcow GUID registriert werden.</a> Alternativ ist <a href="https://www.servercow.de/mailcow#support" target="_blank" alt="SAL Bestellung">die Bestellung von Support-Paketen möglich</a>.';
+$lang['admin']['validate_license_now'] = 'GUID erneut verifizieren';
+$lang['admin']['customer_id'] = 'Kunde';
+$lang['admin']['service_id'] = 'Service';
+
