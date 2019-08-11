@@ -102,7 +102,7 @@ case "$SUCCESS" in
       fi
       mv -f /tmp/_cert.pem ${CERT}
       echo -n ${CERT_DOMAINS[*]} > ${DOMAINS_FILE}
-      rm /var/www/acme/*
+      rm /var/www/acme/* 2> /dev/null
       log_f "Certificate successfully obtained"
       exit ${RETURN}
     else
