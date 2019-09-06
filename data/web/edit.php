@@ -578,9 +578,18 @@ if (isset($_SESSION['mailcow_cc_role'])) {
                 <?php
               endforeach;
 
+              // Generated here, but used in extended_sender_acl
+              if (!empty($sender_acl_handles['external_sender_aliases'])) {
+                $ext_sender_acl = implode(', ', $sender_acl_handles['external_sender_aliases']);
+              }
+              else {
+                $ext_sender_acl = '';
+              }
+
               ?>
               </select>
               <div style="display:none" id="sender_acl_disabled"><?=$lang['edit']['sender_acl_disabled'];?></div>
+              <small class="help-block"><?=$lang['edit']['sender_acl_info'];?></small>
             </div>
           </div>
           <div class="form-group">
@@ -593,6 +602,13 @@ if (isset($_SESSION['mailcow_cc_role'])) {
             <label class="control-label col-sm-2" for="password2"><?=$lang['edit']['password_repeat'];?></label>
             <div class="col-sm-10">
             <input type="password" class="form-control" name="password2">
+            </div>
+          </div>
+          <div data-acl="<?=$_SESSION['acl']['extend_sender_acl'];?>" class="form-group">
+            <label class="control-label col-sm-2" for="extended_sender_acl"><?=$lang['edit']['extended_sender_acl'];?></label>
+            <div class="col-sm-10">
+            <input type="text" class="form-control" name="extended_sender_acl" value="<?=empty($ext_sender_acl) ? '' : $ext_sender_acl; ?>" placeholder="user1@example.com, user2@example.org, @example.com, ...">
+            <small class="help-block"><?=$lang['edit']['extended_sender_acl_info'];?></small>
             </div>
           </div>
           <div class="form-group">
@@ -644,6 +660,7 @@ if (isset($_SESSION['mailcow_cc_role'])) {
               <div class="form-group">
                 <button class="btn btn-default" data-action="edit_selected" data-id="mboxratelimit" data-item="<?=htmlspecialchars($mailbox);?>" data-api-url='edit/rl-mbox' data-api-attr='{}' href="#"><?=$lang['admin']['save'];?></button>
               </div>
+              <p class="help-block"><?=$lang['edit']['mbox_rl_info'];?></p>
             </div>
           </div>
         </form>
@@ -686,6 +703,7 @@ if (isset($_SESSION['mailcow_cc_role'])) {
               <label class="control-label col-sm-2" for="hostname"><?=$lang['add']['hostname'];?></label>
               <div class="col-sm-10">
                 <input type="text" class="form-control" name="hostname" value="<?=htmlspecialchars($result['hostname'], ENT_QUOTES, 'UTF-8');?>" required>
+                <p class="help-block"><?=$lang['add']['relayhost_wrapped_tls_info'];?></p>
               </div>
             </div>
             <div class="form-group">

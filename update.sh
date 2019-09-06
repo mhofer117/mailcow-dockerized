@@ -6,6 +6,12 @@ if [ "$(id -u)" -ne "0" ]; then
   exit 1
 fi
 
+if [[ "$(uname -r)" =~ ^4\.15\.0-60 ]]; then
+  echo "DO NOT RUN mailcow ON THIS UBUNTU KERNEL!";
+  echo "Please update to 5.x or use another distribution."
+  exit 1
+fi
+
 # Exit on error and pipefail
 set -o pipefail
 
@@ -339,8 +345,11 @@ if [[ ! "$response" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   exit 0
 fi
 
-DIFF_FILE=diff_before_update_$(date +"%Y-%m-%d-%H-%M-%S")
+DIFF_DIRECTORY=update_diffs
+DIFF_FILE=${DIFF_DIRECTORY}/diff_before_update_$(date +"%Y-%m-%d-%H-%M-%S")
 echo -e "\e[32mSaving diff to ${DIFF_FILE}...\e[0m"
+mkdir -p ${DIFF_DIRECTORY}
+mv diff_before_update* ${DIFF_DIRECTORY}/ 2> /dev/null
 git diff --stat > ${DIFF_FILE}
 git diff >> ${DIFF_FILE}
 

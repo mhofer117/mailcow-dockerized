@@ -282,7 +282,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -352,6 +352,9 @@ jQuery(function($){
               item.rl = $.map(item.rl, function(e){
                 return e;
               }).join('/1');
+              if (item.rl_scope === 'domain') {
+                item.rl = '↪ ' + item.rl + ' (via ' + item.domain + ')';
+              }
             }
             item.chkbox = '<input type="checkbox" data-id="mailbox" name="multi_select" value="' + encodeURIComponent(item.username) + '" />';
             item.tls_enforce_in = '<span class="text-' + (item.attributes.tls_enforce_in == 1 ? 'success' : 'danger') + ' glyphicon glyphicon-lock"></span>';
@@ -398,7 +401,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         //"container": "#tab-mailboxes.panel",
@@ -472,7 +475,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -544,7 +547,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -608,7 +611,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -678,7 +681,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -746,7 +749,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -840,7 +843,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -871,7 +874,7 @@ jQuery(function($){
       "columns": [
         {"name":"chkbox","title":"","style":{"maxWidth":"60px","width":"60px"},"filterable": false,"sortable": false,"type":"html"},
         {"sorted": true,"name":"alias_domain","title":lang.alias,"style":{"width":"250px"}},
-        {"name":"target_domain","title":lang.target_domain},
+        {"name":"target_domain","title":lang.target_domain,"type":"html"},
         {"name":"active","filterable": false,"style":{"maxWidth":"50px","width":"70px"},"title":lang.active},
         {"name":"action","filterable": false,"sortable": false,"style":{"text-align":"right","maxWidth":"250px","width":"250px"},"type":"html","title":lang.action,"breakpoints":"xs sm"}
       ],
@@ -891,6 +894,11 @@ jQuery(function($){
               '<a href="#dnsInfoModal" class="btn btn-xs btn-info" data-toggle="modal" data-domain="' + encodeURIComponent(item.alias_domain) + '"><span class="glyphicon glyphicon-question-sign"></span> DNS</a></div>' +
               '</div>';
             item.chkbox = '<input type="checkbox" data-id="alias-domain" name="multi_select" value="' + encodeURIComponent(item.alias_domain) + '" />';
+            if(item.parent_is_backupmx == '1') {
+              item.target_domain = '<span><a href="/edit/domain/' + item.target_domain + '">' + item.target_domain + '</a> <div class="label label-warning">' + lang.alias_domain_backupmx + '</div></span>';
+            } else {
+              item.target_domain = '<span><a href="/edit/domain/' + item.target_domain + '">' + item.target_domain + '</a></span>';
+            }
           });
         }
       }),
@@ -904,7 +912,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -986,7 +994,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table
@@ -1056,7 +1064,7 @@ jQuery(function($){
       },
       "filtering": {
         "enabled": true,
-        "delay": 100,
+        "delay": 1200,
         "position": "left",
         "connectors": false,
         "placeholder": lang.filter_table

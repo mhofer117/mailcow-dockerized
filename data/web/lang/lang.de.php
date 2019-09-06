@@ -19,7 +19,7 @@ $lang['footer']['cancel'] = 'Abbrechen';
 $lang['footer']['hibp_nok'] = 'Übereinstimmung gefunden! Dieses Passwort ist potentiell gefährlich!';
 $lang['footer']['hibp_ok'] = 'Keine Übereinstimmung gefunden.';
 
-$lang['danger']['transport_dest_exists'] = "Transport Maps Ziel existiert bereits";
+$lang['danger']['transport_dest_exists'] = 'Transport Maps Ziel "%s" existiert bereits';
 $lang['danger']['unlimited_quota_acl'] = "Unendliche Quota untersagt durch ACL";
 $lang['danger']['mysql_error'] = "MySQL Fehler: %s";
 $lang['danger']['redis_error'] = "Redis Fehler: %s";
@@ -31,7 +31,7 @@ $lang['success']['verified_u2f_login'] = "U2F Anmeldung verifiziert";
 $lang['success']['verified_yotp_login'] = "Yubico OTP Anmeldung verifiziert";
 $lang['danger']['yotp_verification_failed'] = "Yubico OTP Verifizierung fehlgeschlagen: %s";
 $lang['danger']['ip_list_empty'] = "Liste erlaubter IPs darf nicht leer sein";
-$lang['danger']['invalid_destination'] = "Ziel-Format ist ungültig";
+$lang['danger']['invalid_destination'] = 'Ziel-Format "%s" ist ungültig';
 $lang['danger']['invalid_nexthop'] = "Next Hop ist ungültig";
 $lang['danger']['invalid_nexthop_authenticated'] = 'Dieser Next Hop existiert bereits mit abweichenden Authentifizierungsdaten. Die bestehenden Authentifizierungsdaten dieses "Next Hops" müssen vorab angepasst werden.';
 $lang['danger']['next_hop_interferes'] = "%s verhindert das Hinzufügen von Next Hop %s";
@@ -108,6 +108,7 @@ $lang['success']['resource_modified'] = "Änderungen an Ressource %s wurden gesp
 $lang['success']['object_modified'] = "Änderungen an Objekt %s wurden gespeichert";
 $lang['success']['f2b_modified'] = "Änderungen an Fail2ban-Parametern wurden gespeichert";
 $lang['danger']['targetd_not_found'] = 'Ziel-Domain %s nicht gefunden';
+$lang['danger']['targetd_relay_domain'] = 'Ziel-Domain %s ist eine Relay-Domain';
 $lang['success']['aliasd_added'] = 'Alias-Domain %s wurde angelegt';
 $lang['success']['aliasd_modified'] = 'Änderungen an Alias-Domain %s wurden gespeichert';
 $lang['success']['domain_modified'] = 'Änderungen an Domain %s wurden gespeichert';
@@ -209,7 +210,7 @@ $lang['user']['spamfilter_behavior'] = 'Bewertung';
 $lang['user']['spamfilter_green'] = 'Grün: Die Nachricht ist kein Spam';
 $lang['user']['spamfilter_yellow'] = 'Gelb: Die Nachricht ist vielleicht Spam, wird als Spam markiert und in den Junk-Ordner verschoben';
 $lang['user']['spamfilter_red'] = 'Rot: Die Nachricht ist eindeutig Spam und wird vom Server abgelehnt';
-$lang['user']['spamfilter_default_score'] = 'Standardwert:';
+$lang['user']['spamfilter_default_score'] = 'Standardwert';
 $lang['user']['spamfilter_hint'] = 'Der erste Wert beschreibt den "low spam score", der zweite Wert den "high spam score".';
 $lang['user']['spamfilter_table_domain_policy'] = "n.v. (Domainrichtlinie)";
 $lang['user']['waiting'] = "Warte auf Ausführung";
@@ -344,9 +345,9 @@ $lang['edit']['skipcrossduplicates'] = 'Duplikate auch über Ordner hinweg über
 $lang['add']['automap'] = 'Ordner automatisch mappen ("Sent items", "Sent" => "Sent" etc.)';
 $lang['add']['skipcrossduplicates'] = 'Duplikate auch über Ordner hinweg überspringen ("first come, first serve")';
 $lang['edit']['exclude'] = 'Elemente ausschließen (Regex)';
-$lang['edit']['max_mailboxes'] = 'Max. Mailboxanzahl:';
+$lang['edit']['max_mailboxes'] = 'Max. Mailboxanzahl';
 $lang['edit']['title'] = 'Objekt bearbeiten';
-$lang['edit']['target_address'] = 'Ziel-Adresse(n) <small>(getrennt durch Komma)</small>:';
+$lang['edit']['target_address'] = 'Ziel-Adresse(n) <small>(getrennt durch Komma)</small>';
 $lang['edit']['active'] = 'Aktiv';
 $lang['add']['gal'] = 'Globales Adressbuch';
 $lang['edit']['gal'] = 'Globales Adressbuch';
@@ -356,20 +357,20 @@ $lang['edit']['force_pw_update'] = 'Erzwinge Passwortänderung bei nächstem Log
 $lang['edit']['force_pw_update_info'] = 'Dem Benutzer wird lediglich der Zugang zur mailcow UI ermöglicht.';
 $lang['edit']['sogo_access'] = 'SOGo Zugriffsrecht';
 $lang['edit']['sogo_access_info'] = 'Zugriff auf SOGo erlauben oder verbieten. Diese Einstellung hat weder Einfluss auf den Zugang sonstiger Dienste noch entfernt sie ein vorhandenes SOGo Benutzerprofil.';
-$lang['edit']['target_domain'] = 'Ziel-Domain:';
-$lang['edit']['password'] = 'Passwort:';
-$lang['edit']['password_repeat'] = 'Passwort (Wiederholung):';
+$lang['edit']['target_domain'] = 'Ziel-Domain';
+$lang['edit']['password'] = 'Passwort';
+$lang['edit']['password_repeat'] = 'Passwort (Wiederholung)';
 $lang['edit']['domain_admin'] = 'Domain-Administrator bearbeiten';
 $lang['edit']['domain'] = 'Domain bearbeiten';
 $lang['edit']['edit_alias_domain'] = 'Alias-Domain bearbeiten';
 $lang['edit']['domains'] = 'Domains';
 $lang['edit']['alias'] = 'Alias bearbeiten';
 $lang['edit']['mailbox'] = 'Mailbox bearbeiten';
-$lang['edit']['description'] = 'Beschreibung:';
-$lang['edit']['max_aliases'] = 'Max. Aliasse:';
-$lang['edit']['max_quota'] = 'Max. Größe per Mailbox (MiB):';
-$lang['edit']['domain_quota'] = 'Domain Speicherplatz gesamt (MiB):';
-$lang['edit']['backup_mx_options'] = 'Backup MX Optionen:';
+$lang['edit']['description'] = 'Beschreibung';
+$lang['edit']['max_aliases'] = 'Max. Aliasse';
+$lang['edit']['max_quota'] = 'Max. Größe per Mailbox (MiB)';
+$lang['edit']['domain_quota'] = 'Domain Speicherplatz gesamt (MiB)';
+$lang['edit']['backup_mx_options'] = 'Backup MX Optionen';
 $lang['edit']['relay_domain'] = 'Diese Domain relayen';
 $lang['edit']['relay_all'] = 'Alle Empfänger-Adressen relayen';
 $lang['edit']['relay_all_info'] = '<small>Wenn <b>nicht</b> alle Empfänger-Adressen relayt werden sollen, müssen "blinde" Mailboxen für jede Adresse, die relayt werden soll, erstellen werden.</small>';
@@ -411,7 +412,16 @@ $lang['acl']['filters'] = 'Filter';
 $lang['acl']['ratelimit'] = 'Rate limit';
 $lang['acl']['recipient_maps'] = 'Empfängerumschreibungen';
 $lang['acl']['unlimited_quota'] = 'Unendliche Quota für Mailboxen';
+$lang['acl']['extend_sender_acl'] = 'Eingabe externer Absenderadressen erlauben';
 $lang['acl']['prohibited'] = 'Untersagt durch Richtlinie';
+
+$lang['edit']['extended_sender_acl'] = 'Externe Absenderadressen';
+$lang['edit']['extended_sender_acl_info'] = 'Der DKIM Domainkey der externen Absenderdomain sollte in diesen Server importiert werden, falls vorhanden.<br>
+  Wird SPF verwendet, muss diesem Server der Versand gestattet werden.<br>
+  Wird eine Domain oder Alias-Domain zu diesem Server hinzugefügt, die sich mit der externen Absenderadresse überschneidet, wird der externe Absender hier entfernt.<br>
+  Ein Eintrag @domain.tld erlaubt den Versand als *@domain.tld';
+$lang['edit']['sender_acl_info'] = 'Wird einem Mailbox-Benutzer A der Versand als Mailbox-Benutzer B gestattet, so erscheint der Absender <b>nicht</b> automatisch in SOGo zur Auswahl.<br>
+  In SOGo muss zusätzlich eine Delegation eingerichtet werden. Dieses Verhalten trifft nicht auf Alias-Adressen zu.';
 
 $lang['mailbox']['quarantine_notification'] = 'Quarantäne-Benachrichtigung';
 $lang['mailbox']['never'] = 'Niemals';
@@ -600,7 +610,7 @@ $lang['admin']['last_applied'] = 'Zuletzt angewendet';
 $lang['admin']['reset_limit'] = 'Hash entfernen';
 $lang['admin']['hash_remove_info'] = 'Das Entfernen eines Ratelimit Hashes - sofern noch existent - bewirkt den Reset gezählter Nachrichten dieses Elements.<br>
   Jeder Hash wird durch eine eindeutige Farbe gekennzeichnet.';
-$lang['warning']['hash_not_found'] = 'Hash nicht gefunden';
+$lang['warning']['hash_not_found'] = 'Hash nicht gefunden. Möglicherweise wurde dieser bereits gelöscht.';
 $lang['success']['hash_deleted'] = 'Hash wurde gelöscht';
 $lang['admin']['authed_user'] = 'Auth. Benutzer';
 $lang['admin']['priority'] = 'Gewichtung';
@@ -614,7 +624,7 @@ $lang['admin']['forwarding_hosts_hint'] = 'Eingehende Nachrichten werden von den
 $lang['admin']['forwarding_hosts_add_hint'] = 'Sie können entweder IPv4/IPv6-Adressen, Netzwerke in CIDR-Notation, Hostnamen (die zu IP-Adressen aufgelöst werden), oder Domainnamen (die zu IP-Adressen aufgelöst werden, indem ihr SPF-Record abgefragt wird oder, in dessen Abwesenheit, ihre MX-Records) angeben.';
 $lang['admin']['relayhosts_hint'] = 'Erstellen Sie senderabhängige Transporte, um diese im Einstellungsdialog einer Domain auszuwählen.<br>
   Der Transporttyp lautet immer "smtp:". Benutzereinstellungen bezüglich Verschlüsselungsrichtlinie werden beim Transport berücksichtigt.';
-$lang['admin']['transports_hint'] = '→ Transport Maps <b>überwiegen</b> senderabhängige Transport Maps.
+$lang['admin']['transports_hint'] = '→ Transport Maps <b>überwiegen</b> senderabhängige Transport Maps.<br>
 → Transport Maps ignorieren Mailbox-Einstellungen für ausgehende Verschlüsselung. Eine serverweite TLS-Richtlinie wird jedoch angewendet.<br>
 → Der Transport erfolgt immer via "smtp:".<br>
 → Adressen, die mit "/localhost$/" übereinstimmen, werden immer via "local:" transportiert, daher sind sie von einer Zieldefinition "*" ausgeschlossen.<br>
@@ -837,8 +847,8 @@ $lang['danger']['subject_empty'] = 'Betreff darf nicht leer sein';
 $lang['danger']['from_invalid'] = 'From address must be a valid email address';
 $lang['danger']['network_host_invalid'] = 'Netzwerk oder Host ungültig: %s';
 
-$lang['add']['mailbox_quota_def'] = 'Standard-Quota einer Mailbox:';
-$lang['edit']['mailbox_quota_def'] = 'Standard-Quota einer Mailbox:';
+$lang['add']['mailbox_quota_def'] = 'Standard-Quota einer Mailbox';
+$lang['edit']['mailbox_quota_def'] = 'Standard-Quota einer Mailbox';
 $lang['danger']['mailbox_defquota_exceeds_mailbox_maxquota'] = 'Standard-Quota überschreitet das Limit der maximal erlaubten Größe einer Mailbox';
 $lang['danger']['defquota_empty'] = 'Standard-Quota darf nicht 0 sein';
 $lang['mailbox']['mailbox_defquota'] = 'Standard-Quota';
@@ -852,3 +862,15 @@ $lang['admin']['validate_license_now'] = 'GUID erneut verifizieren';
 $lang['admin']['customer_id'] = 'Kunde';
 $lang['admin']['service_id'] = 'Service';
 
+$lang['admin']['lookup_mx'] = 'Ziel gegen MX prüfen (etwa .outlook.com, um alle Ziele mit MX *.outlook.com zu routen)';
+$lang['edit']['mbox_rl_info'] = 'Dieses Limit wird auf den SASL Loginnamen angewendet und betrifft daher alle Absenderadressen, die der eingeloggte Benutzer verwendet. Eub Mailbox Ratelimit überwiegt ein Domain-weites Ratelimit.';
+
+$lang['add']['relayhost_wrapped_tls_info'] = 'Bitte <b>keine</b> TLS-wrapped Ports verwenden (etwa SMTPS via Port 465/tcp).<br>
+Der Transport wird stattdessen STARTTLS anfordern, um TLS zu verwenden. TLS kann unter "TLS Policy Maps" erzwungen werden.';
+
+$lang['admin']['transport_dest_format'] = 'Syntax: example.org, .example.org, *, box@example.org (mehrere Werte getrennt durch Komma einzugeben)';
+
+$lang['mailbox']['alias_domain_backupmx'] = 'Alias-Domain für Relay-Domain inaktiv';
+
+$lang['danger']['extra_acl_invalid'] = 'Externe Absenderadresse "%s" ist ungültig';
+$lang['danger']['extra_acl_invalid_domain'] = 'Externe Absenderadresse "%s" verwendet eine ungültige Domain';
