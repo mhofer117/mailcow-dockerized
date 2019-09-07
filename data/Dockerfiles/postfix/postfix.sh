@@ -20,14 +20,14 @@ EOF
 newaliases;
 
 # create sni configuration
-echo "" > /opt/postfix/conf/sni.map;
+echo -n "" > /opt/postfix/conf/sni.map;
 for cert_dir in /etc/ssl/mail/*/ ; do
   if [[ ! -f ${cert_dir}domains ]] || [[ ! -f ${cert_dir}cert.pem ]] || [[ ! -f ${cert_dir}key.pem ]]; then
     continue;
   fi
   IFS=" " read -r -a domains <<< "$(cat "${cert_dir}domains")"
   for domain in "${domains[@]}"; do
-    echo "${domain} ${cert_dir}key.pem ${cert_dir}cert.pem" >> /opt/postfix/conf/sni.map;
+    echo -n "${domain} ${cert_dir}key.pem ${cert_dir}cert.pem" >> /opt/postfix/conf/sni.map;
     if [[ -f ${cert_dir}ecdsa-cert.pem && -f ${cert_dir}ecdsa-key.pem ]]; then
       echo -n " ${cert_dir}ecdsa-key.pem ${cert_dir}ecdsa-cert.pem" >> /opt/postfix/conf/sni.map;
     fi
