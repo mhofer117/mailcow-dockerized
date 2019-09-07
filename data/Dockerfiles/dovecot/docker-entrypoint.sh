@@ -143,21 +143,21 @@ if [[ $(stat -c %U /var/attachments) != "vmail" ]] ; then chown -R vmail:vmail /
 rm -rf /var/vmail/mailcow.local/*
 
 # create sni configuration
-echo "" > /usr/local/etc/dovecot/sni.conf
+echo "" > /etc/dovecot/sni.conf
 for cert_dir in /etc/ssl/mail/*/ ; do
   if [[ ! -f ${cert_dir}domains ]] || [[ ! -f ${cert_dir}cert.pem ]] || [[ ! -f ${cert_dir}key.pem ]]; then
     continue
   fi
   domains=($(cat ${cert_dir}domains))
   for domain in ${domains[@]}; do
-    echo 'local_name '${domain}' {' >> /usr/local/etc/dovecot/sni.conf;
-    echo '  ssl_cert = <'${cert_dir}'cert.pem' >> /usr/local/etc/dovecot/sni.conf;
-    echo '  ssl_key = <'${cert_dir}'key.pem' >> /usr/local/etc/dovecot/sni.conf;
+    echo 'local_name '${domain}' {' >> /etc/dovecot/sni.conf;
+    echo '  ssl_cert = <'${cert_dir}'cert.pem' >> /etc/dovecot/sni.conf;
+    echo '  ssl_key = <'${cert_dir}'key.pem' >> /etc/dovecot/sni.conf;
     if [[ -f ${cert_dir}ecdsa-cert.pem && -f ${cert_dir}ecdsa-key.pem ]]; then
-      echo '  ssl_alt_cert = <'${cert_dir}'ecdsa-cert.pem' >> /usr/local/etc/dovecot/sni.conf;
-      echo '  ssl_alt_key = <'${cert_dir}'ecdsa-key.pem' >> /usr/local/etc/dovecot/sni.conf;
+      echo '  ssl_alt_cert = <'${cert_dir}'ecdsa-cert.pem' >> /etc/dovecot/sni.conf;
+      echo '  ssl_alt_key = <'${cert_dir}'ecdsa-key.pem' >> /etc/dovecot/sni.conf;
     fi
-    echo '}' >> /usr/local/etc/dovecot/sni.conf;
+    echo '}' >> /etc/dovecot/sni.conf;
   done
 done
 

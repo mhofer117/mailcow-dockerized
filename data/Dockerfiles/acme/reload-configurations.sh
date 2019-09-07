@@ -27,7 +27,7 @@ reload_postfix(){
 restart_container(){
   for container in $*; do
     echo "Restarting ${container}..."
-    C_REST_OUT=$(curl -X POST --insecure https://dockerapi/containers/${container}/restart | jq -r '.msg')
+    C_REST_OUT=$(curl -X POST --insecure https://dockerapi/containers/${container}/restart --silent | jq -r '.msg')
     echo "${C_REST_OUT}"
   done
 }
@@ -35,7 +35,7 @@ restart_container(){
 if [[ "${CERT_AMOUNT_CHANGED}" == "1" ]]; then
   restart_container ${NGINX}
   restart_container ${DOVECOT}
-  reload_postfix
+  restart_container ${POSTFIX}
 else
   reload_nginx
   reload_dovecot

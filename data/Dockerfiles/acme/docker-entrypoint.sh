@@ -194,6 +194,10 @@ while true; do
   done
   ADDITIONAL_WC_ARR+=('autodiscover' 'autoconfig')
 
+  while read domains; do
+    SQL_DOMAIN_ARR+=("${domains}")
+  done < <(mysql --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT domain FROM domain WHERE backupmx=0" -Bs)
+
   # Start IP detection
   log_f "Detecting IP addresses... " no_nl
   IPV4=$(get_ipv4)
@@ -349,9 +353,6 @@ while true; do
 
   #########################################
   # IP and webroot challenge verification #
-  while read domains; do
-    SQL_DOMAIN_ARR+=("${domains}")
-  done < <(mysql --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT domain FROM domain WHERE backupmx=0" -Bs)
 
   if [[ ${ONLY_MAILCOW_HOSTNAME} != "y" ]]; then
   for SQL_DOMAIN in "${SQL_DOMAIN_ARR[@]}"; do
