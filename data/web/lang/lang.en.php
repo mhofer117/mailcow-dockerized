@@ -13,14 +13,14 @@ $lang['footer']['restarting_container'] = 'Restarting container, this may take a
 $lang['footer']['restart_container_info'] = '<b>Important:</b> A graceful restart may take a while to complete, please wait for it to finish.';
 
 $lang['footer']['confirm_delete'] = 'Confirm deletion';
-$lang['footer']['delete_these_items'] = 'Please confirm your changes to the following object id:';
+$lang['footer']['delete_these_items'] = 'Please confirm your changes to the following object id';
 $lang['footer']['delete_now'] = 'Delete now';
 $lang['footer']['cancel'] = 'Cancel';
 
 $lang['footer']['hibp_nok'] = 'Matched! This is a potentially dangerous password!';
 $lang['footer']['hibp_ok'] = 'No match found.';
 
-$lang['danger']['transport_dest_exists'] = "Transport destination exists";
+$lang['danger']['transport_dest_exists'] = 'Transport destination "%s" exists';
 $lang['danger']['unlimited_quota_acl'] = "Unlimited quota prohibited by ACL";
 $lang['danger']['mysql_error'] = "MySQL error: %s";
 $lang['danger']['redis_error'] = "Redis error: %s";
@@ -32,7 +32,7 @@ $lang['success']['verified_u2f_login'] = "Verified U2F login";
 $lang['success']['verified_yotp_login'] = "Verified Yubico OTP login";
 $lang['danger']['yotp_verification_failed'] = "Yubico OTP verification failed: %s";
 $lang['danger']['ip_list_empty'] = "List of allowed IPs cannot be empty";
-$lang['danger']['invalid_destination'] = "Destination format is invalid";
+$lang['danger']['invalid_destination'] = 'Destination format "%s" is invalid';
 $lang['danger']['invalid_nexthop'] = "Next hop format is invalid";
 $lang['danger']['invalid_nexthop_authenticated'] = "Next hop exists with different credentials, please update the existing credentials for this next hop first.";
 $lang['danger']['next_hop_interferes'] = "%s interferes with nexthop %s";
@@ -112,6 +112,7 @@ $lang['success']['resource_modified'] = "Changes to mailbox %s have been saved";
 $lang['success']['object_modified'] = "Changes to object %s have been saved";
 $lang['success']['f2b_modified'] = "Changes to Fail2ban parameters have been saved";
 $lang['danger']['targetd_not_found'] = "Target domain %s not found";
+$lang['danger']['targetd_relay_domain'] = "Target domain %s is a relay domain";
 $lang['success']['aliasd_added'] = "Added alias domain %s";
 $lang['success']['aliasd_modified'] = "Changes to alias domain %s have been saved";
 $lang['success']['domain_modified'] = "Changes to domain %s have been saved";
@@ -213,7 +214,7 @@ $lang['user']['spamfilter_table_add'] = 'Add item';
 $lang['user']['spamfilter_green'] = 'Green: this message is not spam';
 $lang['user']['spamfilter_yellow'] = 'Yellow: this message may be spam, will be tagged as spam and moved to your junk folder';
 $lang['user']['spamfilter_red'] = 'Red: This message is spam and will be rejected by the server';
-$lang['user']['spamfilter_default_score'] = 'Default values:';
+$lang['user']['spamfilter_default_score'] = 'Default values';
 $lang['user']['spamfilter_hint'] = 'The first value describes the "low spam score", the second represents the "high spam score".';
 $lang['user']['spamfilter_table_domain_policy'] = "n/a (domain policy)";
 $lang['user']['waiting'] = "Waiting";
@@ -424,7 +425,16 @@ $lang['acl']['filters'] = 'Filters';
 $lang['acl']['ratelimit'] = 'Rate limit';
 $lang['acl']['recipient_maps'] = 'Recipient maps';
 $lang['acl']['unlimited_quota'] = 'Unlimited quota for mailboxes';
+$lang['acl']['extend_sender_acl'] = 'Allow to extend sender ACL by external addresses';
 $lang['acl']['prohibited'] = 'Prohibited by ACL';
+
+$lang['edit']['extended_sender_acl'] = 'External sender addresses';
+$lang['edit']['extended_sender_acl_info'] = 'A DKIM domain key should be imported, if available.<br>
+  Remember to add this server to the corresponding SPF TXT record.<br>
+  Whenever a domain or alias domain is added to this server, that overlaps with an external address, the external address is removed.<br>
+  Use @domain.tld to allow to send as *@domain.tld.';
+$lang['edit']['sender_acl_info'] = 'If mailbox user A is allowed to send as mailbox user B, the sender address is not automatically displayed as selectable "from" field in SOGo.<br>
+  Mailbox user A needs to create a delegation in SOGo to allow mailbox user b to select their address as sender. This behaviour does not apply to alias addresses.';
 
 $lang['mailbox']['quarantine_notification'] = 'Quarantine notifications';
 $lang['mailbox']['never'] = 'Never';
@@ -886,4 +896,11 @@ $lang['edit']['mbox_rl_info'] = 'This rate limit is applied on the SASL login na
 
 $lang['add']['relayhost_wrapped_tls_info'] = 'Please do <b>not</b> use TLS-wrapped ports (mostly used on port 465).<br>
 Use any non-wrapped port and issue STARTTLS. A TLS policy to enforce TLS can be created in "TLS policy maps".';
+
+$lang['admin']['transport_dest_format'] = 'Syntax: example.org, .example.org, *, box@example.org (multiple values can be comma-separated)';
+
+$lang['mailbox']['alias_domain_backupmx'] = 'Alias domain inactive for relay domain';
+
+$lang['danger']['extra_acl_invalid'] = 'External sender address "%s" is invalid';
+$lang['danger']['extra_acl_invalid_domain'] = 'External sender "%s" uses an invalid domain';
 
