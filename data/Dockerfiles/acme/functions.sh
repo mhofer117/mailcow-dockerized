@@ -11,8 +11,7 @@ log_f() {
   if [[ ${3} == "b64" ]]; then
     redis-cli -h redis LPUSH ACME_LOG "{\"time\":\"$(date +%s)\",\"message\":\"base64,$(printf '%s' "${1}")\"}" > /dev/null
   else
-    redis-cli -h redis LPUSH ACME_LOG "{\"time\":\"$(date +%s)\",\"message\":\"$(printf '%s' "${1}" | \
-      tr '%&;$"[]{}-\r\n' ' ')\"}" > /dev/null
+    redis-cli -h redis LPUSH ACME_LOG "{\"time\":\"$(date +%s)\",\"message\":\"$(printf '%s' "${1}" | tr '%&;$\"[]{}-\r\n''')\"}" > /dev/null
   fi
 }
 
@@ -54,6 +53,44 @@ get_ipv6(){
     TRY=$((TRY+1))
   done
   echo ${IPV6}
+}
+
+check_domain(){
+    DOMAIN=$1
+    A_DOMAIN=$(dig A ${DOMAIN} +short | tail -n 1)
+    AAAA_DOMAIN=$(dig AAAA ${DOMAIN} +short | tail -n 1)
+    # Check if CNAME without v6 enabled target
+    if [[ ! -z ${AAAA_DOMAIN} ]] && [[ -z $(echo ${AAAA_DOMAIN} | grep "^\([0-9a-fA-F]\{0,4\}:\)\{1,7\}[0-9a-fA-F]\{0,4\}$") ]]; then
+      AAAA_DOMAIN=
+    fi
+    if [[ ! -z ${AAAA_DOMAIN} ]]; then
+      log_f "Found AAAA record for ${DOMAIN}: ${AAAA_DOMAIN} - skipping A record check"
+      if [[ $(expand ${IPV6:-"0000:0000:0000:0000:0000:0000:0000:0000"}) == $(expand ${AAAA_DOMAIN}) ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
+        if verify_challenge_path "${DOMAIN}" 6; then
+          log_f "Confirmed AAAA record with IP ${AAAA_DOMAIN}"
+          return 0
+        else
+          log_f "Confirmed AAAA record with IP ${AAAA_DOMAIN}, but HTTP validation failed"
+        fi
+      else
+        log_f "Cannot match your IP ${IPV6:-NO_IPV6_LINK} against hostname ${DOMAIN} (DNS returned $(expand ${AAAA_DOMAIN}))"
+      fi
+    elif [[ ! -z ${A_DOMAIN} ]]; then
+      log_f "Found A record for ${DOMAIN}: ${A_DOMAIN}"
+      if [[ ${IPV4:-ERR} == ${A_DOMAIN} ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
+        if verify_challenge_path "${DOMAIN}" 4; then
+          log_f "Confirmed A record ${A_DOMAIN}"
+          return 0
+        else
+          log_f "Confirmed A record with IP ${A_DOMAIN}, but HTTP validation failed"
+        fi
+      else
+        log_f "Cannot match your IP ${IPV4} against hostname ${DOMAIN} (DNS returned ${A_DOMAIN})"
+      fi
+    else
+      log_f "No A or AAAA record found for hostname ${DOMAIN}"
+    fi
+    return 1
 }
 
 verify_challenge_path(){

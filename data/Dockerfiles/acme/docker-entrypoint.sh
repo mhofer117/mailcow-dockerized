@@ -16,9 +16,14 @@ if [[ "${SKIP_HTTP_VERIFICATION}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   SKIP_HTTP_VERIFICATION=y
 fi
 
-# Request certificate for MAILCOW_HOSTNAME ony
+# Request certificate for MAILCOW_HOSTNAME only
 if [[ "${ONLY_MAILCOW_HOSTNAME}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
   ONLY_MAILCOW_HOSTNAME=y
+fi
+
+# Request individual certificate for every domain
+if [[ "${ENABLE_SSL_SNI}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
+  ENABLE_SSL_SNI=y
 fi
 
 if [[ "${SKIP_LETS_ENCRYPT}" =~ ^([yY][eE][sS]|[yY])+$ ]]; then
@@ -65,7 +70,6 @@ fi
 
 [[ ! -f ${ACME_BASE}/dhparams.pem ]] && cp ${SSL_EXAMPLE}/dhparams.pem ${ACME_BASE}/dhparams.pem
 
-CUSTOM_CERT=0
 if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]] && [[ $(stat -c%s ${ACME_BASE}/cert.pem) != 0 ]]; then
   ISSUER=$(openssl x509 -in ${ACME_BASE}/cert.pem -noout -issuer)
   if [[ ${ISSUER} != *"Let's Encrypt"* && ${ISSUER} != *"mailcow"* && ${ISSUER} != *"Fake LE Intermediate"* ]]; then
@@ -81,7 +85,7 @@ if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]] && [[ $(stat 
         ln -sf key.pem ${ACME_BASE}/ecdsa-key.pem
       fi
     fi
-    CUSTOM_CERT=1
+    // todo: restart in x
   fi
 else
   if [[ -f ${ACME_BASE}/acme/cert.pem ]] && [[ -f ${ACME_BASE}/acme/key.pem ]] && verify_hash_match ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem; then
@@ -217,38 +221,8 @@ while true; do
     fi
   fi
 
-  A_MAILCOW_HOSTNAME=$(dig A ${MAILCOW_HOSTNAME} +short | tail -n 1)
-  AAAA_MAILCOW_HOSTNAME=$(dig AAAA ${MAILCOW_HOSTNAME} +short | tail -n 1)
-  # Check if CNAME without v6 enabled target
-  if [[ ! -z ${AAAA_MAILCOW_HOSTNAME} ]] && [[ -z $(echo ${AAAA_MAILCOW_HOSTNAME} | grep "^\([0-9a-fA-F]\{0,4\}:\)\{1,7\}[0-9a-fA-F]\{0,4\}$") ]]; then
-    AAAA_MAILCOW_HOSTNAME=
-  fi
-  if [[ ! -z ${AAAA_MAILCOW_HOSTNAME} ]]; then
-    log_f "Found AAAA record for ${MAILCOW_HOSTNAME}: ${AAAA_MAILCOW_HOSTNAME} - skipping A record check"
-    if [[ $(expand ${IPV6:-"0000:0000:0000:0000:0000:0000:0000:0000"}) == $(expand ${AAAA_MAILCOW_HOSTNAME}) ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
-      if verify_challenge_path "${MAILCOW_HOSTNAME}" 6; then
-        log_f "Confirmed AAAA record ${AAAA_MAILCOW_HOSTNAME}"
-        VALIDATED_MAILCOW_HOSTNAME=${MAILCOW_HOSTNAME}
-      else
-        log_f "Confirmed AAAA record with IP ${AAAA_MAILCOW_HOSTNAME}, but HTTP validation failed"
-      fi
-    else
-      log_f "Cannot match your IP ${IPV6:-NO_IPV6_LINK} against hostname ${MAILCOW_HOSTNAME} (DNS returned $(expand ${AAAA_MAILCOW_HOSTNAME}))"
-    fi
-  elif [[ ! -z ${A_MAILCOW_HOSTNAME} ]]; then
-    log_f "Found A record for ${MAILCOW_HOSTNAME}: ${A_MAILCOW_HOSTNAME}"
-    if [[ ${IPV4:-ERR} == ${A_MAILCOW_HOSTNAME} ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
-      if verify_challenge_path "${MAILCOW_HOSTNAME}" 4; then
-        log_f "Confirmed A record ${A_MAILCOW_HOSTNAME}"
-        VALIDATED_MAILCOW_HOSTNAME=${MAILCOW_HOSTNAME}
-      else
-        log_f "Confirmed A record with IP ${A_MAILCOW_HOSTNAME}, but HTTP validation failed"
-      fi
-    else
-      log_f "Cannot match your IP ${IPV4} against hostname ${MAILCOW_HOSTNAME} (DNS returned ${A_MAILCOW_HOSTNAME})"
-    fi
-  else
-    log_f "No A or AAAA record found for hostname ${MAILCOW_HOSTNAME}"
+  if [[ check_domain ${MAILCOW_HOSTNAME} ]]; then
+    VALIDATED_MAILCOW_HOSTNAME+=("${MAILCOW_HOSTNAME}")
   fi
 
   if [[ ${ONLY_MAILCOW_HOSTNAME} != "y" ]]; then
@@ -267,38 +241,8 @@ while true; do
     if [[ ${SAN} == ${MAILCOW_HOSTNAME} ]]; then
       continue
     fi
-    A_SAN=$(dig A ${SAN} +short | tail -n 1)
-    AAAA_SAN=$(dig AAAA ${SAN} +short | tail -n 1)
-    # Check if CNAME without v6 enabled target
-    if [[ ! -z ${AAAA_SAN} ]] && [[ -z $(echo ${AAAA_SAN} | grep "^\([0-9a-fA-F]\{0,4\}:\)\{1,7\}[0-9a-fA-F]\{0,4\}$") ]]; then
-      AAAA_SAN=
-    fi
-    if [[ ! -z ${AAAA_SAN} ]]; then
-      log_f "Found AAAA record for ${SAN}: ${AAAA_SAN} - skipping A record check"
-      if [[ $(expand ${IPV6:-"0000:0000:0000:0000:0000:0000:0000:0000"}) == $(expand ${AAAA_SAN}) ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
-        if verify_challenge_path "${SAN}" 6; then
-          log_f "Confirmed AAAA record with IP ${AAAA_SAN}"
-          ADDITIONAL_VALIDATED_SAN+=("${SAN}")
-        else
-          log_f "Confirmed AAAA record with IP ${AAAA_SAN}, but HTTP validation failed"
-        fi
-      else
-        log_f "Cannot match your IP ${IPV6:-NO_IPV6_LINK} against hostname ${SAN} (DNS returned $(expand ${AAAA_SAN}))"
-      fi
-    elif [[ ! -z ${A_SAN} ]]; then
-      log_f "Found A record for ${SAN}: ${A_SAN}"
-      if [[ ${IPV4:-ERR} == ${A_SAN} ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
-        if verify_challenge_path "${SAN}" 4; then
-          log_f "Confirmed A record ${A_SAN}"
-          ADDITIONAL_VALIDATED_SAN+=("${SAN}")
-        else
-          log_f "Confirmed A record with IP ${A_SAN}, but HTTP validation failed"
-        fi
-      else
-        log_f "Cannot match your IP ${IPV4} against hostname ${SAN} (DNS returned ${A_SAN})"
-      fi
-    else
-      log_f "No A or AAAA record found for hostname ${SAN}"
+    if [[ check_domain ${SAN} ]]; then
+      ADDITIONAL_VALIDATED_DOMAIN+=("${SAN}")
     fi
   done
   fi
@@ -322,12 +266,10 @@ while true; do
     else
         CERT_ERRORS=1
     fi
-    if [[ "${CUSTOM_CERT}" != "1" ]]; then
-      # create relative symbolic link as server certificate
-      cd ${ACME_BASE}
-      ln -sf "./${CERT_NAME}/cert.pem" "./cert.pem"
-      ln -sf "./${CERT_NAME}/key.pem" "./key.pem"
-    fi
+    # create relative symbolic link as server certificate
+    cd ${ACME_BASE}
+    ln -sf "./${CERT_NAME}/cert.pem" "./cert.pem"
+    ln -sf "./${CERT_NAME}/key.pem" "./key.pem"
 
     if [[ "${SKIP_ECDSA_CERT}" != "y" ]]; then
       DOMAINS=${SERVER_SAN_VALIDATED[@]} /srv/obtain-certificate.sh ecdsa
@@ -342,12 +284,10 @@ while true; do
       else
           CERT_ERRORS=1
       fi
-      if [[ "${CUSTOM_CERT}" != "1" ]]; then
-        # create relative symbolic link as server certificate
-        cd ${ACME_BASE}
-        ln -sf "./${CERT_NAME}/ecdsa-cert.pem" "./ecdsa-cert.pem"
-        ln -sf "./${CERT_NAME}/ecdsa-key.pem" "./ecdsa-key.pem"
-      fi
+      # create relative symbolic link as server certificate
+      cd ${ACME_BASE}
+      ln -sf "./${CERT_NAME}/ecdsa-cert.pem" "./ecdsa-cert.pem"
+      ln -sf "./${CERT_NAME}/ecdsa-key.pem" "./ecdsa-key.pem"
     fi
   fi
 
@@ -360,38 +300,8 @@ while true; do
     declare -a VALIDATED_CONFIG_DOMAINS
     for SUBDOMAIN in "${ADDITIONAL_WC_ARR[@]}"; do
       if [[  "${SUBDOMAIN}.${SQL_DOMAIN}" != "${MAILCOW_HOSTNAME}" ]]; then
-        A_SUBDOMAIN=$(dig A ${SUBDOMAIN}.${SQL_DOMAIN} +short | tail -n 1)
-        AAAA_SUBDOMAIN=$(dig AAAA ${SUBDOMAIN}.${SQL_DOMAIN} +short | tail -n 1)
-        # Check if CNAME without v6 enabled target
-        if [[ ! -z ${AAAA_SUBDOMAIN} ]] && [[ -z $(echo ${AAAA_SUBDOMAIN} | grep "^\([0-9a-fA-F]\{0,4\}:\)\{1,7\}[0-9a-fA-F]\{0,4\}$") ]]; then
-          AAAA_SUBDOMAIN=
-        fi
-        if [[ ! -z ${AAAA_SUBDOMAIN} ]]; then
-          log_f "Found AAAA record for ${SUBDOMAIN}.${SQL_DOMAIN}: ${AAAA_SUBDOMAIN} - skipping A record check"
-          if [[ $(expand ${IPV6:-"0000:0000:0000:0000:0000:0000:0000:0000"}) == $(expand ${AAAA_SUBDOMAIN}) ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
-            if verify_challenge_path "${SUBDOMAIN}.${SQL_DOMAIN}" 6; then
-              log_f "Confirmed AAAA record with IP ${AAAA_SUBDOMAIN}, adding SAN"
-              VALIDATED_CONFIG_DOMAINS+=("${SUBDOMAIN}.${SQL_DOMAIN}")
-            else
-              log_f "Confirmed AAAA record with IP ${AAAA_SUBDOMAIN}, but HTTP validation failed"
-            fi
-          else
-            log_f "Cannot match your IP ${IPV6:-NO_IPV6_LINK} against hostname ${SUBDOMAIN}.${SQL_DOMAIN} ($(expand ${AAAA_SUBDOMAIN}))"
-          fi
-        elif [[ ! -z ${A_SUBDOMAIN} ]]; then
-          log_f "Found A record for ${SUBDOMAIN}.${SQL_DOMAIN}: ${A_SUBDOMAIN}"
-          if [[ ${IPV4:-ERR} == ${A_SUBDOMAIN} ]] || [[ ${SKIP_IP_CHECK} == "y" ]]; then
-            if verify_challenge_path "${SUBDOMAIN}.${SQL_DOMAIN}" 4; then
-              log_f "Confirmed A record ${A_SUBDOMAIN}, adding SAN"
-              VALIDATED_CONFIG_DOMAINS+=("${SUBDOMAIN}.${SQL_DOMAIN}")
-            else
-              log_f "Confirmed A record with IP ${A_SUBDOMAIN}, but HTTP validation failed"
-            fi
-          else
-            log_f "Cannot match your IP ${IPV4} against hostname ${SUBDOMAIN}.${SQL_DOMAIN} (${A_SUBDOMAIN})"
-          fi
-        else
-          log_f "No A or AAAA record found for hostname ${SUBDOMAIN}.${SQL_DOMAIN}"
+        if [[ check_domain ${SUBDOMAIN}.${SQL_DOMAIN} ]]; then
+          ADDITIONAL_VALIDATED_DOMAIN+=("${SUBDOMAIN}.${SQL_DOMAIN}")
         fi
       fi
     done
