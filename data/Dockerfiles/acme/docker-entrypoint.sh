@@ -56,15 +56,17 @@ mkdir -p ${ACME_BASE}/acme
 [[ -f ${ACME_BASE}/acme/private/account.key ]] && mv ${ACME_BASE}/acme/private/account.key ${ACME_BASE}/acme/account.pem
 if [[ -f ${ACME_BASE}/acme/key.pem && -f ${ACME_BASE}/acme/cert.pem ]]; then
   if verify_hash_match ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem; then
-    log_f "Migrating to SNI folder structure..."
-    CERT_DOMAINS=($(openssl x509 -noout -text -in ${ACME_BASE}/acme/cert.pem | grep "DNS:" | sed -e 's/\(DNS:\)\|,//g' | sed -e 's/^[[:space:]]*//'))
-    CERT_DOMAIN=${CERT_DOMAINS[0]}
+    log_f "Migrating to SNI folder structure..." no_nl
+    CERT_DOMAIN=($(openssl x509 -noout -text -in ${ACME_BASE}/acme/cert.pem | grep "Subject:" | sed -e 's/\(Subject:\)\|\(CN = \)\|\(CN=\)//g' | sed -e 's/^[[:space:]]*//'))
+    CERT_DOMAINS=(${CERT_DOMAIN} $(openssl x509 -noout -text -in ${ACME_BASE}/acme/cert.pem | grep "DNS:" | sed -e 's/\(DNS:\)\|,//g' | sed "s/${CERT_DOMAIN}//" | sed -e 's/^[[:space:]]*//'))
     mkdir -p ${ACME_BASE}/${CERT_DOMAIN}
     mv ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/${CERT_DOMAIN}/cert.pem
+    # key is only copied, not moved, because it is used by all other requests too
     cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/${CERT_DOMAIN}/key.pem
     chmod 600 ${ACME_BASE}/${CERT_DOMAIN}/key.pem
     echo -n ${CERT_DOMAINS[*]} > ${ACME_BASE}/${CERT_DOMAIN}/domains
     mv ${ACME_BASE}/acme/acme.csr ${ACME_BASE}/${CERT_DOMAIN}/acme.csr
+    log_f "OK" no_date
   fi
 fi
 
@@ -90,19 +92,20 @@ if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]] && [[ $(stat 
     exec $(readlink -f "$0")
   fi
 else
-  if [[ -f ${ACME_BASE}/acme/cert.pem ]] && [[ -f ${ACME_BASE}/acme/key.pem ]] && verify_hash_match ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem; then
+  if [[ -f ${ACME_BASE}/${MAILCOW_HOSTNAME}/cert.pem ]] && [[ -f ${ACME_BASE}/${MAILCOW_HOSTNAME}/key.pem ]] && verify_hash_match ${ACME_BASE}/${MAILCOW_HOSTNAME}/cert.pem ${ACME_BASE}/${MAILCOW_HOSTNAME}/key.pem; then
     log_f "Restoring previous acme certificate and restarting script..."
-    cp ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/cert.pem
-    cp ${ACME_BASE}/acme/key.pem ${ACME_BASE}/key.pem
+    cp ${ACME_BASE}/${MAILCOW_HOSTNAME}/cert.pem ${ACME_BASE}/cert.pem
+    cp ${ACME_BASE}/${MAILCOW_HOSTNAME}/key.pem ${ACME_BASE}/key.pem
 
-    if [[ -f ${ACME_BASE}/acme/ecdsa-cert.pem ]] && [[ -f ${ACME_BASE}/acme/ecdsa-key.pem ]] && verify_hash_match ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/acme/ecdsa-key.pem; then
+    if [[ -f ${ACME_BASE}/${MAILCOW_HOSTNAME}/ecdsa-cert.pem ]] && [[ -f ${ACME_BASE}/${MAILCOW_HOSTNAME}/ecdsa-key.pem ]] && verify_hash_match ${ACME_BASE}/${MAILCOW_HOSTNAME}/ecdsa-cert.pem ${ACME_BASE}/${MAILCOW_HOSTNAME}/ecdsa-key.pem; then
       # Remove symlink before copying
-      cp --remove-destination ${ACME_BASE}/acme/ecdsa-cert.pem ${ACME_BASE}/ecdsa-cert.pem
-      cp --remove-destination ${ACME_BASE}/acme/ecdsa-key.pem ${ACME_BASE}/ecdsa-key.pem
+      cp --remove-destination ${ACME_BASE}/${MAILCOW_HOSTNAME}/ecdsa-cert.pem ${ACME_BASE}/ecdsa-cert.pem
+      cp --remove-destination ${ACME_BASE}/${MAILCOW_HOSTNAME}/ecdsa-key.pem ${ACME_BASE}/ecdsa-key.pem
     fi
     # Restarting with env var set to trigger a restart,
     exec env TRIGGER_RESTART=1 $(readlink -f "$0")
   else
+    ISSUER="mailcow"
     log_f "Restoring mailcow snake-oil certificates and restarting script..."
     cp ${SSL_EXAMPLE}/cert.pem ${ACME_BASE}/cert.pem
     cp ${SSL_EXAMPLE}/key.pem ${ACME_BASE}/key.pem
@@ -187,6 +190,7 @@ while true; do
   CERT_CHANGED=0
   CERT_AMOUNT_CHANGED=0
   declare -a SQL_DOMAIN_ARR
+  declare -a VALIDATED_CONFIG_DOMAINS
   declare -a ADDITIONAL_VALIDATED_SAN
   declare -a ADDITIONAL_WC_ARR
   declare -a ADDITIONAL_SAN_ARR
@@ -212,9 +216,9 @@ while true; do
   MH_CAAS=( $(dig CAA ${MH_PARENT_DOMAIN} +short | sed -n 's/\d issue "\(.*\)"/\1/p') )
   if [[ ! -z ${MH_CAAS} ]]; then
     if [[ ${MH_CAAS[@]} =~ "letsencrypt.org" ]]; then
-      echo "Validated CAA for parent domain ${MH_PARENT_DOMAIN}"
+      log_f "Validated CAA for parent domain ${MH_PARENT_DOMAIN}"
     else
-      echo "Skipping ACME validation: Lets Encrypt disallowed for ${MAILCOW_HOSTNAME} by CAA record, retrying in 1h..."
+      log_f "Skipping ACME validation: Lets Encrypt disallowed for ${MAILCOW_HOSTNAME} by CAA record, retrying in 1h..."
       sleep 1h
       exec $(readlink -f "$0")
     fi
@@ -252,9 +256,9 @@ while true; do
     SAN_CAAS=( $(dig CAA ${SAN_PARENT_DOMAIN} +short | sed -n 's/\d issue "\(.*\)"/\1/p') )
     if [[ ! -z ${SAN_CAAS} ]]; then
       if [[ ${SAN_CAAS[@]} =~ "letsencrypt.org" ]]; then
-        echo "Validated CAA for parent domain ${SAN_PARENT_DOMAIN} of ${SAN}"
+        log_f "Validated CAA for parent domain ${SAN_PARENT_DOMAIN} of ${SAN}"
       else
-        echo "Skipping ACME validation for ${SAN}: Lets Encrypt disallowed for ${SAN} by CAA record"
+        log_f "Skipping ACME validation for ${SAN}: Lets Encrypt disallowed for ${SAN} by CAA record"
         continue
       fi
     fi
@@ -292,10 +296,9 @@ while true; do
     else
       CERT_ERRORS=1
     fi
-    # create relative symbolic link as server certificate
-    cd ${ACME_BASE}
-    ln -sf "./${CERT_NAME}/cert.pem" "./cert.pem"
-    ln -sf "./${CERT_NAME}/key.pem" "./key.pem"
+    # copy hostname certificate to default/server certificate
+    cp ${ACME_BASE}/${CERT_NAME}/cert.pem ${ACME_BASE}/cert.pem
+    cp ${ACME_BASE}/${CERT_NAME}/key.pem ${ACME_BASE}/key.pem
 
     if [[ "${SKIP_ECDSA_CERT}" != "y" ]]; then
       DOMAINS=${SERVER_SAN_VALIDATED[@]} /srv/obtain-certificate.sh ecdsa
@@ -311,9 +314,8 @@ while true; do
         CERT_ERRORS=1
       fi
       # create relative symbolic link as server certificate
-      cd ${ACME_BASE}
-      ln -sf "./${CERT_NAME}/ecdsa-cert.pem" "./ecdsa-cert.pem"
-      ln -sf "./${CERT_NAME}/ecdsa-key.pem" "./ecdsa-key.pem"
+      ln -sf ${CERT_NAME}/ecdsa-cert.pem ${ACME_BASE}/ecdsa-cert.pem
+      ln -sf ${CERT_NAME}/ecdsa-key.pem ${ACME_BASE}/ecdsa-key.pem
     fi
   fi
 
@@ -325,7 +327,6 @@ while true; do
     unset VALIDATED_DOMAINS_SORTED
     declare -a VALIDATED_DOMAINS_SORTED
     VALIDATED_DOMAINS_SORTED=(${VALIDATED_DOMAINS_ARR[0]} $(echo ${VALIDATED_DOMAINS_ARR[@]:1} | xargs -n1 | sort -u | xargs))
-    echo ${VALIDATED_DOMAINS_SORTED[*]}
 
     if [[ ! -z ${VALIDATED_DOMAINS_SORTED[*]} ]]; then
       CERT_NAME=${VALIDATED_DOMAINS_SORTED[0]}
@@ -370,28 +371,30 @@ while true; do
     exec $(readlink -f "$0")
   fi
 
-  # find orphaned certificates
-  for EXISTING_CERT in "${EXISTING_CERTS[@]}"; do
-    if [[ ! "`printf '_%s_\n' "${VALIDATED_CERTIFICATES[@]}"`" == *"_${EXISTING_CERT}_"* ]]; then
-      DATE=$(date +%Y-%m-%d_%H_%M_%S)
-      log_f "Found orphaned certificate: ${EXISTING_CERT} - archiving it at ${ACME_BASE}/backups/${EXISTING_CERT}/"
-      BACKUP_DIR=${ACME_BASE}/backups/${EXISTING_CERT}/${DATE}
-      BACKUP_DIR_ECDSA=${ACME_BASE}/backups/${EXISTING_CERT}/ecdsa-${DATE}
+  # find orphaned certificates if no errors occurred
+  if [[ "${CERT_ERRORS}" == "0" ]]; then
+    for EXISTING_CERT in "${EXISTING_CERTS[@]}"; do
+      if [[ ! "`printf '_%s_\n' "${VALIDATED_CERTIFICATES[@]}"`" == *"_${EXISTING_CERT}_"* ]]; then
+        DATE=$(date +%Y-%m-%d_%H_%M_%S)
+        log_f "Found orphaned certificate: ${EXISTING_CERT} - archiving it at ${ACME_BASE}/backups/${EXISTING_CERT}/"
+        BACKUP_DIR=${ACME_BASE}/backups/${EXISTING_CERT}/${DATE}
+        BACKUP_DIR_ECDSA=${ACME_BASE}/backups/${EXISTING_CERT}/ecdsa-${DATE}
 
-      # archive ecdsa cert (if exists)
-      mkdir -p ${BACKUP_DIR_ECDSA}/
-      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem && -f ${ACME_BASE}/${EXISTING_CERT}/domains ]] && cp ${ACME_BASE}/${EXISTING_CERT}/domains ${BACKUP_DIR_ECDSA}/
-      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem ${BACKUP_DIR_ECDSA}/
-      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-key.pem ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-key.pem ${BACKUP_DIR_ECDSA}/
-      [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-acme.csr ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-acme.csr ${BACKUP_DIR_ECDSA}/
+        # archive ecdsa cert (if exists)
+        mkdir -p ${BACKUP_DIR_ECDSA}/
+        [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem && -f ${ACME_BASE}/${EXISTING_CERT}/domains ]] && cp ${ACME_BASE}/${EXISTING_CERT}/domains ${BACKUP_DIR_ECDSA}/
+        [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-cert.pem ${BACKUP_DIR_ECDSA}/
+        [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-key.pem ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-key.pem ${BACKUP_DIR_ECDSA}/
+        [[ -f ${ACME_BASE}/${EXISTING_CERT}/ecdsa-acme.csr ]] && mv ${ACME_BASE}/${EXISTING_CERT}/ecdsa-acme.csr ${BACKUP_DIR_ECDSA}/
 
-      # archive rsa cert and any other files
-      mv ${ACME_BASE}/${EXISTING_CERT} ${BACKUP_DIR}
+        # archive rsa cert and any other files
+        mv ${ACME_BASE}/${EXISTING_CERT} ${BACKUP_DIR}
 
-      CERT_CHANGED=1
-      CERT_AMOUNT_CHANGED=1
-    fi
-  done
+        CERT_CHANGED=1
+        CERT_AMOUNT_CHANGED=1
+      fi
+    done
+  fi
 
   # reload on new or changed certificates
   if [[ "${CERT_CHANGED}" == "1" ]]; then
@@ -400,7 +403,15 @@ while true; do
 
   case "$CERT_ERRORS" in
     0) # all successful
-      log_f "Certificates successfully processed, sleeping 1d"
+      if [[ "${CERT_CHANGED}" == "1" ]]; then
+        if [[ "${CERT_AMOUNT_CHANGED}" == "1" ]]; then
+          log_f "Certificates successfully requested and renewed where required, sleeping one day"
+        else
+          log_f "Certificates were successfully renewed where required, sleeping for another day."
+        fi
+      else
+        log_f "Certificates were successfully validated, no changes or renewals required, sleeping for another day."
+      fi
       sleep 1d
       ;;
     *) # non-zero
