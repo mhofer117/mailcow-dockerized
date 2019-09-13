@@ -11,7 +11,8 @@ log_f() {
   if [[ ${3} == "b64" ]]; then
     redis-cli -h redis LPUSH ACME_LOG "{\"time\":\"$(date +%s)\",\"message\":\"base64,$(printf '%s' "${1}")\"}" > /dev/null
   else
-    redis-cli -h redis LPUSH ACME_LOG "{\"time\":\"$(date +%s)\",\"message\":\"$(printf '%s' "${1}" | tr '%&;$\"[]{}-\r\n''')\"}" > /dev/null
+    redis-cli -h redis LPUSH ACME_LOG "{\"time\":\"$(date +%s)\",\"message\":\"$(printf '%s' "${1}" | \
+      tr '%&;$"[]{}-\r\n' ' ')\"}" > /dev/null
   fi
 }
 

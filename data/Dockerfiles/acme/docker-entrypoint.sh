@@ -73,7 +73,7 @@ fi
 if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]] && [[ $(stat -c%s ${ACME_BASE}/cert.pem) != 0 ]]; then
   ISSUER=$(openssl x509 -in ${ACME_BASE}/cert.pem -noout -issuer)
   if [[ ${ISSUER} != *"Let's Encrypt"* && ${ISSUER} != *"mailcow"* && ${ISSUER} != *"Fake LE Intermediate"* ]]; then
-    log_f "Found certificate with issuer other than mailcow snake-oil CA and Let's Encrypt, do not replace server certificate..."
+    log_f "Found certificate with issuer other than mailcow snake-oil CA and Let's Encrypt, skipping ACME client..."
 
     # Make sure we do not combine Letsencrypt ECDSA with another RSA certificate
     # Remove ECDSA if that is the case
@@ -85,7 +85,9 @@ if [[ -f ${ACME_BASE}/cert.pem ]] && [[ -f ${ACME_BASE}/key.pem ]] && [[ $(stat 
         ln -sf key.pem ${ACME_BASE}/ecdsa-key.pem
       fi
     fi
-    // todo: restart in x
+
+    sleep 3650d
+    exec $(readlink -f "$0")
   fi
 else
   if [[ -f ${ACME_BASE}/acme/cert.pem ]] && [[ -f ${ACME_BASE}/acme/key.pem ]] && verify_hash_match ${ACME_BASE}/acme/cert.pem ${ACME_BASE}/acme/key.pem; then
@@ -221,7 +223,7 @@ while true; do
     fi
   fi
 
-  if [[ check_domain ${MAILCOW_HOSTNAME} ]]; then
+  if check_domain ${MAILCOW_HOSTNAME}; then
     VALIDATED_MAILCOW_HOSTNAME+=("${MAILCOW_HOSTNAME}")
   fi
 
@@ -241,8 +243,8 @@ while true; do
     if [[ ${SAN} == ${MAILCOW_HOSTNAME} ]]; then
       continue
     fi
-    if [[ check_domain ${SAN} ]]; then
-      ADDITIONAL_VALIDATED_DOMAIN+=("${SAN}")
+    if check_domain ${SAN}; then
+      ADDITIONAL_VALIDATED_SAN+=("${SAN}")
     fi
   done
   fi
@@ -300,8 +302,8 @@ while true; do
     declare -a VALIDATED_CONFIG_DOMAINS
     for SUBDOMAIN in "${ADDITIONAL_WC_ARR[@]}"; do
       if [[  "${SUBDOMAIN}.${SQL_DOMAIN}" != "${MAILCOW_HOSTNAME}" ]]; then
-        if [[ check_domain ${SUBDOMAIN}.${SQL_DOMAIN} ]]; then
-          ADDITIONAL_VALIDATED_DOMAIN+=("${SUBDOMAIN}.${SQL_DOMAIN}")
+        if check_domain "${SUBDOMAIN}.${SQL_DOMAIN}"; then
+          VALIDATED_CONFIG_DOMAINS+=("${SUBDOMAIN}.${SQL_DOMAIN}")
         fi
       fi
     done
