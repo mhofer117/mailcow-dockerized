@@ -175,6 +175,7 @@ while true; do
 
   # Cleaning up and init validation arrays
   unset SQL_DOMAIN_ARR
+  unset VALIDATED_CONFIG_DOMAINS
   unset ADDITIONAL_VALIDATED_SAN
   unset ADDITIONAL_WC_ARR
   unset ADDITIONAL_SAN_ARR
@@ -200,10 +201,6 @@ while true; do
   done
   ADDITIONAL_WC_ARR+=('autodiscover' 'autoconfig')
 
-  while read domains; do
-    SQL_DOMAIN_ARR+=("${domains}")
-  done < <(mysql --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT domain FROM domain WHERE backupmx=0" -Bs)
-
   # Start IP detection
   log_f "Detecting IP addresses... " no_nl
   IPV4=$(get_ipv4)
@@ -223,8 +220,29 @@ while true; do
     fi
   fi
 
+  #########################################
+  # IP and webroot challenge verification #
+  while read domains; do
+    SQL_DOMAIN_ARR+=("${domains}")
+  done < <(mysql --socket=/var/run/mysqld/mysqld.sock -u ${DBUSER} -p${DBPASS} ${DBNAME} -e "SELECT domain FROM domain WHERE backupmx=0" -Bs)
+
+  if [[ ${ONLY_MAILCOW_HOSTNAME} != "y" ]]; then
+  for SQL_DOMAIN in "${SQL_DOMAIN_ARR[@]}"; do
+    unset VALIDATED_CONFIG_DOMAINS_SUBDOMAINS
+    declare -a VALIDATED_CONFIG_DOMAINS_SUBDOMAINS
+    for SUBDOMAIN in "${ADDITIONAL_WC_ARR[@]}"; do
+      if [[  "${SUBDOMAIN}.${SQL_DOMAIN}" != "${MAILCOW_HOSTNAME}" ]]; then
+        if check_domain "${SUBDOMAIN}.${SQL_DOMAIN}"; then
+          VALIDATED_CONFIG_DOMAINS_SUBDOMAINS+=("${SUBDOMAIN}.${SQL_DOMAIN}")
+        fi
+      fi
+    done
+    VALIDATED_CONFIG_DOMAINS+=("${VALIDATED_CONFIG_DOMAINS_SUBDOMAINS[*]}")
+  done
+  fi
+
   if check_domain ${MAILCOW_HOSTNAME}; then
-    VALIDATED_MAILCOW_HOSTNAME+=("${MAILCOW_HOSTNAME}")
+    VALIDATED_MAILCOW_HOSTNAME="${MAILCOW_HOSTNAME}"
   fi
 
   if [[ ${ONLY_MAILCOW_HOSTNAME} != "y" ]]; then
@@ -249,8 +267,14 @@ while true; do
   done
   fi
 
-  # Unique elements
-  SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+  # Unique domains for server certificate
+  if [[ ${ENABLE_SSL_SNI} == "y" ]]; then
+    # create certificate for server name and fqdn SANs only
+    SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+  else
+    # create certificate for all domains, including all subdomains from other domains [*]
+    SERVER_SAN_VALIDATED=(${VALIDATED_MAILCOW_HOSTNAME} $(echo ${VALIDATED_CONFIG_DOMAINS[*]} ${ADDITIONAL_VALIDATED_SAN[*]} | xargs -n1 | sort -u | xargs))
+  fi
   if [[ ! -z ${SERVER_SAN_VALIDATED[*]} ]]; then
     CERT_NAME=${SERVER_SAN_VALIDATED[0]}
     VALIDATED_CERTIFICATES+=("${CERT_NAME}")
@@ -266,7 +290,7 @@ while true; do
     elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
       :
     else
-        CERT_ERRORS=1
+      CERT_ERRORS=1
     fi
     # create relative symbolic link as server certificate
     cd ${ACME_BASE}
@@ -284,7 +308,7 @@ while true; do
       elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
         :
       else
-          CERT_ERRORS=1
+        CERT_ERRORS=1
       fi
       # create relative symbolic link as server certificate
       cd ${ACME_BASE}
@@ -293,30 +317,21 @@ while true; do
     fi
   fi
 
-  #########################################
-  # IP and webroot challenge verification #
+  # individual certificates for SNI [@]
+  if [[ ${ENABLE_SSL_SNI} == "y" ]]; then
+  for VALIDATED_DOMAINS in "${VALIDATED_CONFIG_DOMAINS[@]}"; do
+    VALIDATED_DOMAINS_ARR=(${VALIDATED_DOMAINS})
 
-  if [[ ${ONLY_MAILCOW_HOSTNAME} != "y" ]]; then
-  for SQL_DOMAIN in "${SQL_DOMAIN_ARR[@]}"; do
-    unset VALIDATED_CONFIG_DOMAINS
-    declare -a VALIDATED_CONFIG_DOMAINS
-    for SUBDOMAIN in "${ADDITIONAL_WC_ARR[@]}"; do
-      if [[  "${SUBDOMAIN}.${SQL_DOMAIN}" != "${MAILCOW_HOSTNAME}" ]]; then
-        if check_domain "${SUBDOMAIN}.${SQL_DOMAIN}"; then
-          VALIDATED_CONFIG_DOMAINS+=("${SUBDOMAIN}.${SQL_DOMAIN}")
-        fi
-      fi
-    done
+    unset VALIDATED_DOMAINS_SORTED
+    declare -a VALIDATED_DOMAINS_SORTED
+    VALIDATED_DOMAINS_SORTED=(${VALIDATED_DOMAINS_ARR[0]} $(echo ${VALIDATED_DOMAINS_ARR[@]:1} | xargs -n1 | sort -u | xargs))
+    echo ${VALIDATED_DOMAINS_SORTED[*]}
 
-    unset VALIDATED_CONFIG_DOMAINS_SORTED
-    declare -a VALIDATED_CONFIG_DOMAINS_SORTED
-    VALIDATED_CONFIG_DOMAINS_SORTED=(${VALIDATED_CONFIG_DOMAINS[0]} $(echo ${VALIDATED_CONFIG_DOMAINS[@]:1} | xargs -n1 | sort -u | xargs))
-
-    if [[ ! -z ${VALIDATED_CONFIG_DOMAINS_SORTED[*]} ]]; then
-      CERT_NAME=${VALIDATED_CONFIG_DOMAINS_SORTED[0]}
+    if [[ ! -z ${VALIDATED_DOMAINS_SORTED[*]} ]]; then
+      CERT_NAME=${VALIDATED_DOMAINS_SORTED[0]}
       VALIDATED_CERTIFICATES+=("${CERT_NAME}")
-      # obtain server certificate if required
-      DOMAINS=${VALIDATED_CONFIG_DOMAINS_SORTED[@]} /srv/obtain-certificate.sh rsa
+      # obtain certificate if required
+      DOMAINS=${VALIDATED_DOMAINS_SORTED[@]} /srv/obtain-certificate.sh rsa
       RETURN="$?"
       if [[ "$RETURN" == "0" ]]; then # 0 = cert created successfully
         CERT_AMOUNT_CHANGED=1
@@ -326,11 +341,11 @@ while true; do
       elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
         :
       else
-          CERT_ERRORS=1
+        CERT_ERRORS=1
       fi
 
       if [[ "${SKIP_ECDSA_CERT}" != "y" ]]; then
-        DOMAINS=${VALIDATED_CONFIG_DOMAINS_SORTED[@]} /srv/obtain-certificate.sh ecdsa
+        DOMAINS=${VALIDATED_DOMAINS_SORTED[@]} /srv/obtain-certificate.sh ecdsa
         RETURN="$?"
         if [[ "$RETURN" == "0" ]]; then # 0 = cert created successfully
           CERT_AMOUNT_CHANGED=1
@@ -340,7 +355,7 @@ while true; do
         elif [[ "$RETURN" == "2" ]]; then # 2 = cert not due for renewal
           :
         else
-            CERT_ERRORS=1
+          CERT_ERRORS=1
         fi
       fi
     fi
