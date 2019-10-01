@@ -28,6 +28,7 @@ if (isset($_SESSION['mailcow_cc_role'])) {
           <br />
           <form class="form-horizontal" data-id="editalias" role="form" method="post">
             <input type="hidden" value="0" name="active">
+            <input type="hidden" value="0" name="sogo_visible">
             <div class="form-group">
               <label class="control-label col-sm-2" for="address"><?=$lang['edit']['alias'];?></label>
               <div class="col-sm-10">
@@ -37,7 +38,7 @@ if (isset($_SESSION['mailcow_cc_role'])) {
             <div class="form-group">
               <label class="control-label col-sm-2" for="goto"><?=$lang['edit']['target_address'];?></label>
               <div class="col-sm-10">
-                <textarea id="textarea_alias_goto" class="form-control" autocapitalize="none" autocorrect="off" rows="10" id="goto" name="goto" required><?= (!preg_match('/^(null|ham|spam)@localhost$/i', $result['goto'])) ? htmlspecialchars($result['goto']) : null; ?></textarea>
+                <textarea id="textarea_alias_goto" class="form-control" autocapitalize="none" autocorrect="off" rows="10" id="goto" name="goto" required><?= (!preg_match('/^(null|ham|spam)@localhost$/i', $result['goto'])) ? str_replace(',', ', ', htmlspecialchars($result['goto'])) : null; ?></textarea>
                 <div class="checkbox">
                   <label><input class="goto_checkbox" type="checkbox" value="1" name="goto_null" <?= ($result['goto'] == "null@localhost") ? "checked" : null; ?>> <?=$lang['add']['goto_null'];?></label>
                 </div>
@@ -47,6 +48,11 @@ if (isset($_SESSION['mailcow_cc_role'])) {
                 <div class="checkbox">
                   <label><input class="goto_checkbox" type="checkbox" value="1" name="goto_ham" <?= ($result['goto'] == "ham@localhost") ? "checked" : null; ?>> <?=$lang['add']['goto_ham'];?></label>
                 </div>
+                <hr>
+                <div class="checkbox">
+                  <label><input type="checkbox" value="1" name="sogo_visible" <?php if (isset($result['sogo_visible_int']) && $result['sogo_visible_int']=="1") { echo "checked"; }; ?>> <?=$lang['edit']['sogo_visible'];?></label>
+                </div>
+                <p class="help-block"><?=$lang['edit']['sogo_visible_info'];?></p>
               </div>
             </div>
             <hr>
@@ -506,6 +512,7 @@ if (isset($_SESSION['mailcow_cc_role'])) {
       $mailbox = html_entity_decode(rawurldecode($_GET["mailbox"]));
       $result = mailbox('get', 'mailbox_details', $mailbox);
       $rl = ratelimit('get', 'mailbox', $mailbox);
+      $quarantine_notification = mailbox('get', 'quarantine_notification', $mailbox);
       if (!empty($result)) {
         ?>
         <h4><?=$lang['edit']['mailbox'];?></h4>
@@ -590,6 +597,39 @@ if (isset($_SESSION['mailcow_cc_role'])) {
               </select>
               <div style="display:none" id="sender_acl_disabled"><?=$lang['edit']['sender_acl_disabled'];?></div>
               <small class="help-block"><?=$lang['edit']['sender_acl_info'];?></small>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="control-label col-sm-2" for="sender_acl"><?=$lang['user']['quarantine_notification'];?></label>
+            <div class="col-sm-10">
+            <div class="btn-group" data-acl="<?=$_SESSION['acl']['quarantine_notification'];?>">
+              <button type="button" class="btn btn-sm btn-default <?=($quarantine_notification == "never") ? "active" : null;?>"
+                data-action="edit_selected"
+                data-item="<?= htmlentities($mailbox); ?>"
+                data-id="quarantine_notification"
+                data-api-url='edit/quarantine_notification'
+                data-api-attr='{"quarantine_notification":"never"}'><?=$lang['user']['never'];?></button>
+              <button type="button" class="btn btn-sm btn-default <?=($quarantine_notification == "hourly") ? "active" : null;?>"
+                data-action="edit_selected"
+                data-item="<?= htmlentities($mailbox); ?>"
+                data-id="quarantine_notification"
+                data-api-url='edit/quarantine_notification'
+                data-api-attr='{"quarantine_notification":"hourly"}'><?=$lang['user']['hourly'];?></button>
+              <button type="button" class="btn btn-sm btn-default <?=($quarantine_notification == "daily") ? "active" : null;?>"
+                data-action="edit_selected"
+                data-item="<?= htmlentities($mailbox); ?>"
+                data-id="quarantine_notification"
+                data-api-url='edit/quarantine_notification'
+                data-api-attr='{"quarantine_notification":"daily"}'><?=$lang['user']['daily'];?></button>
+              <button type="button" class="btn btn-sm btn-default <?=($quarantine_notification == "weekly") ? "active" : null;?>"
+                data-action="edit_selected"
+                data-item="<?= htmlentities($mailbox); ?>"
+                data-id="quarantine_notification"
+                data-api-url='edit/quarantine_notification'
+                data-api-attr='{"quarantine_notification":"weekly"}'><?=$lang['user']['weekly'];?></button>
+            </div>
+            <div style="display:none" id="user_acl_q_notify_disabled"><?=$lang['edit']['user_acl_q_notify_disabled'];?></div>
+            <p class="help-block"><small><?=$lang['user']['quarantine_notification_info'];?></small></p>
             </div>
           </div>
           <div class="form-group">

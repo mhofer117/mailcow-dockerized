@@ -18,7 +18,8 @@ services:
             - unbound
 
     mysql-mailcow:
-      image: mariadb:10.2
+      image: mariadb:10.3
+      stop_grace_period: 45s
       volumes:
         - mysql-vol-1:/var/lib/mysql/
         - mysql-socket-vol-1:/var/run/mysqld/
@@ -51,9 +52,11 @@ services:
             - redis
 
     clamd-mailcow:
-      image: mailcow/clamd:1.28
+      image: mailcow/clamd:1.29
       build: ./data/Dockerfiles/clamd
       restart: always
+      dns:
+        - ${IPV4_NETWORK:-172.22.1}.254
       environment:
         - TZ=${TZ}
         - SKIP_CLAMD=${SKIP_CLAMD:-n}
@@ -92,7 +95,7 @@ services:
             - rspamd
 
     php-fpm-mailcow:
-      image: mailcow/phpfpm:1.44
+      image: mailcow/phpfpm:1.48
       build: ./data/Dockerfiles/phpfpm
       command: "php-fpm -d date.timezone=${TZ} -d expose_php=0"
       depends_on:
@@ -110,6 +113,8 @@ services:
         - ./data/conf/phpfpm/php-conf.d/upload.ini:/usr/local/etc/php/conf.d/upload.ini
         - ./data/conf/phpfpm/php-conf.d/other.ini:/usr/local/etc/php/conf.d/zzz-other.ini
         - ./data/assets/templates:/tpls
+      dns:
+        - ${IPV4_NETWORK:-172.22.1}.254
       environment:
         - LOG_LINES=${LOG_LINES:-9999}
         - TZ=${TZ}
@@ -137,7 +142,7 @@ services:
             - phpfpm
 
     sogo-mailcow:
-      image: mailcow/sogo:1.60
+      image: mailcow/sogo:1.61
       build: ./data/Dockerfiles/sogo
       environment:
         - DBNAME=${DBNAME}
@@ -150,6 +155,8 @@ services:
         - ALLOW_ADMIN_EMAIL_LOGIN=${ALLOW_ADMIN_EMAIL_LOGIN:-n}
         - IPV4_NETWORK=${IPV4_NETWORK:-172.22.1}
         - SOGO_EXPIRE_SESSION=${SOGO_EXPIRE_SESSION:-480}
+      dns:
+        - ${IPV4_NETWORK:-172.22.1}.254
       volumes:
         - ./data/conf/sogo/:/etc/sogo/
         - ./data/web/inc/init_db.inc.php:/init_db.inc.php
@@ -164,8 +171,10 @@ services:
             - sogo
 
     dovecot-mailcow:
-      image: mailcow/dovecot:1.88
+      image: mailcow/dovecot:1.89
       build: ./data/Dockerfiles/dovecot
+      dns:
+        - ${IPV4_NETWORK:-172.22.1}.254
       cap_add:
         - NET_BIND_SERVICE
       volumes:
@@ -215,7 +224,7 @@ services:
             - dovecot
 
     postfix-mailcow:
-      image: mailcow/postfix:1.39
+      image: mailcow/postfix:1.40
       build: ./data/Dockerfiles/postfix
       volumes:
         - ./data/conf/postfix:/opt/postfix/conf
@@ -261,6 +270,8 @@ services:
         - php-fpm-mailcow
         - redis-mailcow
       image: nginx:mainline-alpine
+      dns:
+        - ${IPV4_NETWORK:-172.22.1}.254
       command: /bin/sh -c "envsubst < /etc/nginx/conf.d/templates/listen_plain.template > /etc/nginx/conf.d/listen_plain.active &&
         envsubst < /etc/nginx/conf.d/templates/listen_ssl.template > /etc/nginx/conf.d/listen_ssl.active &&
         envsubst < /etc/nginx/conf.d/templates/server_name.template > /etc/nginx/conf.d/server_name.active &&
@@ -301,6 +312,8 @@ services:
         - nginx-mailcow
       image: mailcow/acme:1.61
       build: ./data/Dockerfiles/acme
+      dns:
+        - ${IPV4_NETWORK:-172.22.1}.254
       environment:
         - LOG_LINES=${LOG_LINES:-9999}
         - ADDITIONAL_SAN=${ADDITIONAL_SAN}
@@ -327,7 +340,7 @@ services:
             - acme
 
     netfilter-mailcow:
-      image: mailcow/netfilter:1.28
+      image: mailcow/netfilter:1.29
       build: ./data/Dockerfiles/netfilter
       stop_grace_period: 30s
       depends_on:
@@ -349,7 +362,7 @@ services:
         - /lib/modules:/lib/modules:ro
 
     watchdog-mailcow:
-      image: mailcow/watchdog:1.57
+      image: mailcow/watchdog:1.59
       # Debug
       #command: /watchdog.sh
       build: ./data/Dockerfiles/watchdog
@@ -382,10 +395,12 @@ services:
             - watchdog
 
     dockerapi-mailcow:
-      image: mailcow/dockerapi:1.32
+      image: mailcow/dockerapi:1.34
       restart: always
       build: ./data/Dockerfiles/dockerapi
       oom_kill_disable: true
+      dns:
+        - ${IPV4_NETWORK:-172.22.1}.254
       environment:
         - DBROOT=${DBROOT}
         - TZ=${TZ}
@@ -402,6 +417,8 @@ services:
       restart: always
       volumes:
         - solr-vol-1:/opt/solr/server/solr/dovecot-fts/data
+      ports:
+        - "${SOLR_PORT:-127.0.0.1:18983}:8983"
       environment:
         - TZ=${TZ}
         - SOLR_HEAP=${SOLR_HEAP:-1024}
