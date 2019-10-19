@@ -282,14 +282,15 @@ function pem_to_der($pem_key) {
   unset($lines[0]);
   return base64_decode(implode('', $lines));
 }
-function generate_tlsa_digest($hostname, $port, $starttls = null) {
+function generate_tlsa_digest($hostname, $port, $starttls = null, $ciphers = 'DEFAULT') {
   if (!is_valid_domain_name($hostname)) {
     return "Not a valid hostname";
   }
   if (empty($starttls)) {
-    $context = stream_context_create(array("ssl" => array("capture_peer_cert" => true, 'verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true)));
+    $context = stream_context_create(array("ssl" => array("ciphers" => $ciphers, "capture_peer_cert" => true, 'verify_peer' => false, 'verify_peer_name' => false, 'allow_self_signed' => true)));
     $stream = stream_socket_client('ssl://' . $hostname . ':' . $port, $error_nr, $error_msg, 5, STREAM_CLIENT_CONNECT, $context);
     if (!$stream) {
+      if($error_nr === 0) return false; // probably negotiation failed
       $error_msg = isset($error_msg) ? $error_msg : '-';
       return $error_nr . ': ' . $error_msg;
     }
@@ -327,7 +328,10 @@ function generate_tlsa_digest($hostname, $port, $starttls = null) {
     stream_context_set_option($stream, 'ssl', 'verify_peer', false);
     stream_context_set_option($stream, 'ssl', 'verify_peer_name', false);
     stream_context_set_option($stream, 'ssl', 'allow_self_signed', true);
-    stream_socket_enable_crypto($stream, true, STREAM_CRYPTO_METHOD_ANY_CLIENT);
+    stream_context_set_option($stream, 'ssl', 'ciphers', $ciphers);
+    if(stream_socket_enable_crypto($stream, true, STREAM_CRYPTO_METHOD_ANY_CLIENT) === false) {
+      return false; // negotiation failed
+    }
     stream_set_blocking($stream, false);
   }
   $params = stream_context_get_params($stream);
@@ -365,7 +369,7 @@ function alertbox_log_parser($_data){
       }
       $log_array[] = array('msg' => json_encode($msg), 'type' => json_encode($type));
     }
-    if (!empty($log_array)) { 
+    if (!empty($log_array)) {
       return $log_array;
     }
   }
@@ -715,7 +719,7 @@ function user_get_alias_details($username) {
   }
   return $data;
 }
-function is_valid_domain_name($domain_name) { 
+function is_valid_domain_name($domain_name) {
 	if (empty($domain_name)) {
 		return false;
 	}
@@ -754,7 +758,7 @@ function set_tfa($_data) {
     );
     return false;
   }
-  
+
 	switch ($_data["tfa_method"]) {
 		case "yubi_otp":
       $key_id = (!isset($_data["key_id"])) ? 'unidentified' : $_data["key_id"];
@@ -956,7 +960,7 @@ function get_tfa($username = null) {
       WHERE `username` = :username AND `active` = '1'");
   $stmt->execute(array(':username' => $username));
   $row = $stmt->fetch(PDO::FETCH_ASSOC);
-  
+
 	switch ($row["authmech"]) {
 		case "yubi_otp":
       $data['name'] = "yubi_otp";
@@ -1019,7 +1023,7 @@ function verify_tfa_login($username, $token) {
       WHERE `username` = :username AND `active` = '1'");
   $stmt->execute(array(':username' => $username));
   $row = $stmt->fetch(PDO::FETCH_ASSOC);
-  
+
 	switch ($row["authmech"]) {
 		case "yubi_otp":
 			if (!ctype_alnum($token) || strlen($token) != 44) {
@@ -1368,7 +1372,7 @@ function get_u2f_registrations($username) {
 }
 function get_logs($application, $lines = false) {
   if ($lines === false) {
-    $lines = $GLOBALS['LOG_LINES'] - 1; 
+    $lines = $GLOBALS['LOG_LINES'] - 1;
   }
   elseif(is_numeric($lines) && $lines >= 1) {
     $lines = abs(intval($lines) - 1);

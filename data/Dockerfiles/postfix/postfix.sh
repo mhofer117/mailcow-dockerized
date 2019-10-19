@@ -28,6 +28,9 @@ for cert_dir in /etc/ssl/mail/*/ ; do
   IFS=" " read -r -a domains <<< "$(cat "${cert_dir}domains")"
   for domain in "${domains[@]}"; do
     echo -n "${domain} ${cert_dir}key.pem ${cert_dir}cert.pem" >> /opt/postfix/conf/sni.map;
+    if [[ -f ${cert_dir}ecdsa-cert.pem && -f ${cert_dir}ecdsa-key.pem ]]; then
+      echo -n " ${cert_dir}ecdsa-key.pem ${cert_dir}ecdsa-cert.pem" >> /opt/postfix/conf/sni.map;
+    fi
     echo "" >> /opt/postfix/conf/sni.map;
   done
 done
